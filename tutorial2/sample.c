@@ -5,8 +5,9 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-
 #include <sys/wait.h>
+
+#define BUFFER_LEN 1024
 
 
 int
@@ -17,48 +18,59 @@ main()
     char* login;
     char buff[PATH_MAX];
     cwd = getcwd(buff,PATH_MAX);
+    char line[BUFFER_LEN];
+
     //getlogin
-
     login = getlogin();
-
-
-
-    /* TODO:
-     * •loop 
-        •print:   (use getcwd, getlogin and 
-        gethostname)
-        username@hostname: /home/user > 
-        •read a line from terminal
-        •execute the input line by: 
-        •fork
-        •execvp*
-     * */
-
-    //char* s;
-    //strcpy(s, login);
-    //strcat(s, ": ");
-    //strcat(s, cwd);
     char* prompt = cwd;
     char* args[3];
+    args[2] = NULL;
     int exec1;
 
 
     int bailout = 0;
     while (!bailout) {
-        char* reply = readline(prompt);
+        printf("%s", cwd);
+        fgets(line, BUFFER_LEN, stdin);
+
+        //tokenize input
+        //----------------------------
+        args[0]=strtok(line, " \n"); //"\n" includes space & new line
+        int i=0;
+        while(args[i]!=NULL){
+            args[i+1]=strtok(NULL," \n");
+            i++;
+        }
+        args[i]=NULL;
+        //----------------------------
+        if (strcmp(args[0], "ls") == 0){
+        int p = fork();
+            if (p == 0){
+                printf("%s", cwd);
+                printf("hello from child\n");
+                printf("%d\n", getpid());
+                exec1 = execvp(args[0],args);
+                return 0;
+            }else{
+                wait(NULL);
+                printf("hello from main\n");
+                printf("%d\n", getpid());
+            }
+        }else if(strcmp(args[0], "cd") == 0){
+            chdir(args[1]);
+            cwd = getcwd(buff,PATH_MAX);
+            printf("ARGS[1]: %s", args[1]);
+            
+        }
+
 
         /* Note that readline strips away the final \n */
         //Tokenize string entered by user
         //----------------------------
+        /*
         int p = fork();
         if(p == 0){
             printf("hello from child\n");
-            args[0]=strtok(reply, " \n"); //"\n" includes space & new line
-            int i=0;
-            while(args[i]!=NULL){
-                args[i+1]=strtok(NULL," \n");
-                i++;
-            }
             exec1 = execvp(args[0],args);
             printf("%d\n", exec1);
             printf("%d\n", getpid());
@@ -68,20 +80,16 @@ main()
             int pid1 = waitpid(p, NULL, WNOHANG);
             printf("hello from main\n");
         }
+        */
         //----------------------------
         //Execute the commands entered
         //----------------------------
         //----------------------------
-        if (strcmp(reply, "cd") == 0){
-            chdir("/home/paul/");
-            prompt = "/home/paul/";
-        }
-        if (!strcmp(reply, "bye")) {
+        if (!strcmp(line, "exit")) {
             bailout = 1;
         } else {
-            printf("\nYou said: %s\n\n", reply);
+            printf("\nYou said: %s\n\n", line);
         }
-        free(reply);
     }
     printf("Bye Bye\n");
 }
