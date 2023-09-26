@@ -94,29 +94,31 @@ int main(){
             if(pid==0){               //Child
                 execvp(argv[0],argv);
                 return 0;
+            }else{                    //Parent
+                wait(NULL);
+                printf("Child exited\n");
             }
         }else if(strcmp(argv[0], "bg") == 0){
             pid_t pid = fork();
             if(pid==0){               //Child
+                //TODO while argv != null (might be more than 2 args)
                 argv[0] = argv[1];
                 argv[1] = argv[2];
                 argv[2] = NULL; 
+                return 0;
+            }else{                    //Parent
+                wait(NULL);
+                insert_end(&root, pid, argv[0]);
+                printf("Child exited\n");
             }
-        }else{                    //Parent
-            wait(NULL);
-            insert_end(&root, pid, argv[0]);
-            printf("Child exited\n");
         }
-
         if(!strcmp(line, "exit")){            //check if command is exit
-            exit(0);
+            bailout = 1;
         }
-        if(pid != 0){
-            for (bg_pro* curr = root; curr != NULL; curr = curr->next){
-                printf("pid: %d\n", curr->pid);
-                printf("command: %s\n", curr->command);
-            }
-        }
+    }
+    for (bg_pro* curr = root; curr != NULL; curr = curr->next){
+        printf("pid: %d ", curr->pid);
+        printf("command: %s terminated\n", curr->command);
     }
     deallocate(&root);
 } 
