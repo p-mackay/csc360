@@ -69,7 +69,6 @@ int main(){
         if(pid==0){               //Child
             if(strcmp(argv[0], "ls") == 0){
                 execvp(argv[0],argv);
-                fprintf(stderr, "Child process could not do execvp\n");
                 return 0;
             }else{return 0;}
 
