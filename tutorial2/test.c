@@ -2,14 +2,50 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
+#include <string.h>
 #include <readline/readline.h>
 #include <readline/history.h>
-
 #include <sys/wait.h>
-
 
 #define BUFFER_LEN 1024
 
+typedef struct bg_pro{
+    pid_t pid;
+    char command[1024];
+    struct bg_pro* next;
+}bg_pro;
+
+void deallocate(bg_pro** root){
+    bg_pro* curr = *root;
+    while (curr->next != NULL){
+        bg_pro* aux = curr;
+        curr = curr->next;
+        free(aux);
+    }
+    *root = NULL;
+}
+
+void insert_end(bg_pro** root, pid_t value, char* cmd){
+    bg_pro* new_node = malloc(sizeof(bg_pro));
+    if (new_node == NULL){
+        exit(1);
+    }
+    new_node->next = NULL;
+    new_node->pid = value;
+    strcpy(new_node->command, cmd);
+
+    if (*root == NULL){
+        *root = new_node;
+        return;
+    }
+
+    bg_pro* curr = *root;
+    while (curr->next != NULL){
+        curr = curr->next;
+    }
+    curr->next = new_node;
+
+}
 int main(){
     char line[BUFFER_LEN];  //get command line
     char* argv[100];        //user command
@@ -43,18 +79,6 @@ int main(){
         for(i=0; i<argc; i++){
             printf("%s\n", argv[i]);      //print command/args
         }
-        /*
-        strcpy(progpath, path);           //copy /bin/ to file path
-        strcat(progpath, argv[0]);            //add program to path
-
-        for(i=0; i<strlen(progpath); i++){    //delete newline
-            if(progpath[i]=='\n'){      
-                progpath[i]='\0';
-            }
-        }
-        */
-
-
 
         if (strcmp(argv[0], "cd") == 0){
             if(argv[1]==NULL || strcmp(argv[1],"~")==0){
@@ -65,7 +89,7 @@ int main(){
                 cwd = getcwd(buff,PATH_MAX);
             }
         }
-        int pid= fork();              //fork child
+        pid_t pid= fork();              //fork child
         if(pid==0){               //Child
             if(strcmp(argv[0], "ls") == 0){
                 execvp(argv[0],argv);
