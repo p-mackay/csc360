@@ -47,6 +47,7 @@ void insert_end(bg_pro** root, pid_t value, char* cmd){
 
 }
 int main(){
+    bg_pro* root = NULL;
     char line[BUFFER_LEN];  //get command line
     char* argv[100];        //user command
     int argc;               //arg count
@@ -88,20 +89,34 @@ int main(){
                 chdir(argv[1]);
                 cwd = getcwd(buff,PATH_MAX);
             }
-        }
-        pid_t pid= fork();              //fork child
-        if(pid==0){               //Child
-            if(strcmp(argv[0], "ls") == 0){
+        }else if(strcmp(argv[0], "ls") == 0){
+            pid_t pid = fork();
+            if(pid==0){               //Child
                 execvp(argv[0],argv);
                 return 0;
-            }else{return 0;}
-
+            }
+        }else if(strcmp(argv[0], "bg") == 0){
+            pid_t pid = fork();
+            if(pid==0){               //Child
+                argv[0] = argv[1];
+                argv[1] = argv[2];
+                argv[2] = NULL; 
+            }
         }else{                    //Parent
             wait(NULL);
+            insert_end(&root, pid, argv[0]);
             printf("Child exited\n");
         }
+
         if(!strcmp(line, "exit")){            //check if command is exit
-            bailout = 1;
+            exit(0);
+        }
+        if(pid != 0){
+            for (bg_pro* curr = root; curr != NULL; curr = curr->next){
+                printf("pid: %d\n", curr->pid);
+                printf("command: %s\n", curr->command);
+            }
         }
     }
+    deallocate(&root);
 } 
