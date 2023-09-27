@@ -67,7 +67,13 @@ int main(){
         if(!fgets(line, BUFFER_LEN, stdin)){  //get command and put it in line
             break;                                //if user hits CTRL+D break
         }
+        /*
+        if(strcmp(line, "\n") == 0){
+            continue;
+        }
+        */
         strcpy(cp_line, line);
+        cp_line[strlen(cp_line) - 1] = '\0';
         //tokenize input
         //----------------------------
         argv[0]=strtok(line, " \n");    //"\n" includes space & new line
@@ -109,9 +115,34 @@ int main(){
                 return 0;
             }else{                    //Parent
                 memmove(cp_line, cp_line+3, strlen(cp_line));
-                wait(NULL);
                 insert_end(&root, pid, cp_line);
-                printf("Child exited\n");
+                pid_t ter = waitpid(0, NULL, WNOHANG);
+                while(ter > 0){
+                    if(root->pid == ter){
+                        printf("CASE 1: %d %s has terminated\n", root->pid, root->command);
+                        bg_pro* temp = root;
+                        root = root->next;
+                        free(temp);
+                    }else{
+                        bg_pro* curr = root;
+                        while (curr->next != NULL){
+                            if(curr->next->pid == ter){
+                                printf("CASE 2: %d %s has terminated\n", curr->next->pid, curr->next->command);
+                                bg_pro* temp = curr->next;
+                                curr->next = curr->next->next;
+                                free(temp);
+                            }else{
+                                curr = curr->next;
+                            }
+                        }
+                    }
+                    ter = waitpid(0,NULL,WNOHANG);
+                }
+            }
+        }else if(strcmp(argv[0], "bg_list") == 0){
+            for (bg_pro* curr = root; curr != NULL; curr = curr->next){
+                printf("pid: %d ", curr->pid);
+                printf("command: %s\n", curr->command);
             }
         }else{
             /*execute arbitrary commands i.e ls, ./file*/
@@ -129,11 +160,12 @@ int main(){
             bailout = 1;
         }
     }
+    /*
     for (bg_pro* curr = root; curr != NULL; curr = curr->next){
         printf("pid: %d ", curr->pid);
         printf("command: %s terminated\n", curr->command);
     }
     deallocate(&root);
-    /*
     */
+    deallocate(&root);
 } 
