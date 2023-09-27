@@ -48,15 +48,16 @@ void insert_end(bg_pro** root, pid_t value, char* cmd){
 }
 int main(){
     bg_pro* root = NULL;
-    char line[BUFFER_LEN];  //get command line
-    char* argv[100];        //user command
-    int argc;               //arg count
-    int bailout = 0;
+    char line[BUFFER_LEN];      /*store what is entered from stdin*/
+    char cp_line[BUFFER_LEN];      /*store what is entered from stdin*/
+    char* argv[100];            /*stdin args*/
+    int argc;                   /*number of args*/
+    int bailout = 0;            /*condition to exit SSI*/
     char buff[PATH_MAX];
     char* cwd = getcwd(buff, PATH_MAX);
     char* prompt;
     char* home_dir;
-    home_dir = getenv("HOME");
+    home_dir = getenv("HOME");  /*get users home directory*/
 
 
     while(!bailout){
@@ -66,9 +67,10 @@ int main(){
         if(!fgets(line, BUFFER_LEN, stdin)){  //get command and put it in line
             break;                                //if user hits CTRL+D break
         }
+        strcpy(cp_line, line);
         //tokenize input
         //----------------------------
-        argv[0]=strtok(line, " \n"); //"\n" includes space & new line
+        argv[0]=strtok(line, " \n");    //"\n" includes space & new line
         int i=0;
         while(argv[i]!=NULL){
             argv[i+1]=strtok(NULL," \n");
@@ -76,12 +78,15 @@ int main(){
         }
         argv[i]=NULL;                     //set last value to NULL for execvp
 
+        /*
         argc=i;                           //get arg count
         for(i=0; i<argc; i++){
             printf("%s\n", argv[i]);      //print command/args
         }
+        */
 
         if (strcmp(argv[0], "cd") == 0){
+            /*Change directory then update current working directory*/
             if(argv[1]==NULL || strcmp(argv[1],"~")==0){
                 chdir(home_dir);
                 cwd = getcwd(buff,PATH_MAX);
@@ -89,7 +94,27 @@ int main(){
                 chdir(argv[1]);
                 cwd = getcwd(buff,PATH_MAX);
             }
-        }else if(strcmp(argv[0], "ls") == 0){
+        }else if(strcmp(argv[0], "bg") == 0){
+            /*Execute a background process. Add it a linkedlist*/
+            pid_t pid = fork();
+            if(pid==0){               //Child
+                //TODO while argv != null (might be more than 2 args)
+                int i = 0;
+                while(argv[i]!=NULL){
+                    argv[i] = argv[i+1];
+                    i++;
+                }
+                argv[i]=NULL;                     //set last value to NULL for execvp
+                execvp(argv[0],argv);
+                return 0;
+            }else{                    //Parent
+                memmove(cp_line, cp_line+3, strlen(cp_line));
+                wait(NULL);
+                insert_end(&root, pid, cp_line);
+                printf("Child exited\n");
+            }
+        }else{
+            /*execute arbitrary commands i.e ls, ./file*/
             pid_t pid = fork();
             if(pid==0){               //Child
                 execvp(argv[0],argv);
@@ -98,20 +123,8 @@ int main(){
                 wait(NULL);
                 printf("Child exited\n");
             }
-        }else if(strcmp(argv[0], "bg") == 0){
-            pid_t pid = fork();
-            if(pid==0){               //Child
-                //TODO while argv != null (might be more than 2 args)
-                argv[0] = argv[1];
-                argv[1] = argv[2];
-                argv[2] = NULL; 
-                return 0;
-            }else{                    //Parent
-                wait(NULL);
-                insert_end(&root, pid, argv[0]);
-                printf("Child exited\n");
-            }
         }
+
         if(!strcmp(line, "exit")){            //check if command is exit
             bailout = 1;
         }
@@ -121,4 +134,6 @@ int main(){
         printf("command: %s terminated\n", curr->command);
     }
     deallocate(&root);
+    /*
+    */
 } 
