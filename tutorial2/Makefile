@@ -1,8 +1,8 @@
 .phony all:
-all: sample
+all: test
 
-sample: sample.c
-	gcc sample.c -lreadline -lhistory -o sample
+test: test.c
+	gcc test.c -lreadline -lhistory -o test
 
 .PHONY clean:
 clean:

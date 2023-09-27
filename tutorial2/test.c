@@ -55,41 +55,45 @@ int main(){
     int bailout = 0;            /*condition to exit SSI*/
     char buff[PATH_MAX];
     char* cwd = getcwd(buff, PATH_MAX);
-    char* prompt;
+    char* username = getlogin();
+    char hostname[HOST_NAME_MAX + 1];
+    gethostname(hostname, HOST_NAME_MAX + 1);
+    char prompt[PATH_MAX];
     char* home_dir;
     home_dir = getenv("HOME");  /*get users home directory*/
 
 
     while(!bailout){
 
-        printf("%s", cwd);                    //print shell prompt
+        printf("%s@%s: %s >", username, hostname, cwd);                    //print shell prompt
 
         if(!fgets(line, BUFFER_LEN, stdin)){  //get command and put it in line
             break;                                //if user hits CTRL+D break
         }
-        /*
-        if(strcmp(line, "\n") == 0){
+        if(strcmp(line, "\n") == 0){        /*if user doesn't enter anything then reset loop*/
             continue;
         }
-        */
         strcpy(cp_line, line);
-        cp_line[strlen(cp_line) - 1] = '\0';
+        cp_line[strlen(cp_line) - 1] = '\0';/*get rid of the \n*/
         //tokenize input
         //----------------------------
-        argv[0]=strtok(line, " \n");    //"\n" includes space & new line
+        argv[0]=strtok(line, " \n");        //"\n" includes space & new line
         int i=0;
         while(argv[i]!=NULL){
             argv[i+1]=strtok(NULL," \n");
             i++;
         }
-        argv[i]=NULL;                     //set last value to NULL for execvp
+        argv[i]=NULL;                       //set last value to NULL for execvp
 
         /*
-        argc=i;                           //get arg count
+        argc=i;                             //get arg count
         for(i=0; i<argc; i++){
-            printf("%s\n", argv[i]);      //print command/args
+            printf("%s\n", argv[i]);        //print command/args
         }
         */
+        if(!strcmp(line, "exit")){            //check if command is exit
+            exit(0);
+        }
 
         if (strcmp(argv[0], "cd") == 0){
             /*Change directory then update current working directory*/
@@ -152,7 +156,6 @@ int main(){
                 return 0;
             }else{                    //Parent
                 wait(NULL);
-                printf("Child exited\n");
             }
         }
 
