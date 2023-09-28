@@ -8,7 +8,7 @@
 #include <sys/wait.h>
 #define BUFFER_LEN 1024
 
-/*to store pid, command and next into a linked list*/
+/*to store pid, command and address of next into a linked list*/
 typedef struct bg_pro{
     pid_t pid;
     char command[1024];
@@ -66,7 +66,7 @@ int main(){
         printf("%s@%s: %s >", username, hostname, cwd); /*prompt*/
 
         if(!fgets(line, BUFFER_LEN, stdin)){    /*get command*/
-            break;                              /*if user hits CTRL+D break*/
+            break;                              
         }
         if(strcmp(line, "\n") == 0){            /*if user doesn't enter anything then reset loop*/
             continue;
@@ -106,7 +106,8 @@ int main(){
                 }
             }
         }else if(strcmp(argv[0], "bg") == 0){
-            /*Execute a background process. Add it a linkedlist*/
+            /*Execute a background process. Add it to the linkedlist if it is valid*/
+            int ex_code;
             pid_t pid = fork();
             if(pid==0){                 /*child*/
                 /*while argv != null (might be more than 2 args) then shift to the left*/
@@ -115,26 +116,40 @@ int main(){
                     argv[i] = argv[i+1];
                     i++;
                 }
-                argv[i]=NULL;           //set last value to NULL for execvp
-                execvp(argv[0],argv);
-                return 0;
+                argv[i]=NULL;           /*set last value to NULL for execvp*/
+
+                ex_code = execvp(argv[0],argv);
+                if (ex_code < 0){
+                    exit(1);
+                }else{
+                    waitpid(0, NULL, WNOHANG);
+                }
             }else{                      /*parent*/
-                memmove(cp_line, cp_line+3, strlen(cp_line));
-                insert_end(&root, pid, cp_line);
+                /*if it is a valid background process then add it to the 
+                 * end of the linked list*/
+                if(ex_code != -1){
+                    memmove(cp_line, cp_line+3, strlen(cp_line));
+                    insert_end(&root, pid, cp_line);
+                }
             }
-        }else if(strcmp(argv[0], "bg_list") == 0){
+        }else if(strcmp(argv[0], "bglist") == 0){
+            /*print pid and command of the running background processes*/
+            int count = 0;
             for (bg_pro* curr = root; curr != NULL; curr = curr->next){
-                printf("pid: %d ", curr->pid);
-                printf("command: %s\n", curr->command);
+                count++;
+                printf("%d:   %s %d\n", curr->pid, curr->command, count);
             }
+            printf("Total Background jobs:  %d\n", count);
         }else{
             /*execute arbitrary commands i.e ls, ./file*/
             pid_t pid = fork();
             if(pid==0){                 /*child*/
-                execvp(argv[0],argv);
-                return 0;
+                if (execvp(argv[0],argv) < 0){
+                    printf("invalid command\n");
+                    exit(1);
+                }
             }else{                      /*parent*/
-                wait(NULL);
+                waitpid(0, NULL, WNOHANG);
             }
         }
         /*after each iteration check if a child has terminated,
