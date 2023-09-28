@@ -46,17 +46,16 @@ void insert_end(bg_pro** root, pid_t value, char* cmd){
 
 }
 int main(){
-    bg_pro* root = NULL;
+    bg_pro* root = NULL;        /*initialize an empty linkedlist*/
     char line[BUFFER_LEN];      /*store what is entered from stdin*/
     char cp_line[BUFFER_LEN];   /*copy stdin then remove the \n to store in linkedlist*/
     char* argv[100];            /*stdin args*/
-    int argc;                   /*number of args*/
     int bailout = 0;            /*condition to exit SSI*/
-    char buff[PATH_MAX];
+    char buff[PATH_MAX];        /*temp variable to store cwd*/
     char* cwd = getcwd(buff, PATH_MAX);         /*current working directory*/
-    char* username = getlogin();                
-    char hostname[HOST_NAME_MAX + 1];
-    gethostname(hostname, HOST_NAME_MAX + 1);
+    char* username = getlogin();                /*username*/
+    char hostname[HOST_NAME_MAX + 1];           /*hostname*/
+    gethostname(hostname, HOST_NAME_MAX + 1);   /*current working directory*/
     char prompt[PATH_MAX];
     char* home_dir;
     home_dir = getenv("HOME");  /*get users home directory*/
@@ -94,12 +93,17 @@ int main(){
 
         if (strcmp(argv[0], "cd") == 0){
             /*Change directory then update current working directory*/
-            if(argv[1]==NULL || strcmp(argv[1],"~")==0){
-                chdir(home_dir);
-                cwd = getcwd(buff,PATH_MAX);
+            if(argv[2] != NULL){    /*check if cd takes more than one argument*/
+                printf("bash: cd: too many arguments\n");
+                continue;
             }else{
-                chdir(argv[1]);
-                cwd = getcwd(buff,PATH_MAX);
+                if(argv[1]==NULL || strcmp(argv[1],"~")==0){
+                    chdir(home_dir);
+                    cwd = getcwd(buff,PATH_MAX);
+                }else{
+                    chdir(argv[1]);
+                    cwd = getcwd(buff,PATH_MAX);
+                }
             }
         }else if(strcmp(argv[0], "bg") == 0){
             /*Execute a background process. Add it a linkedlist*/
