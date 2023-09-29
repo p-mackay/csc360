@@ -106,7 +106,7 @@ int main(){
                 }
             }
         }else if(strcmp(argv[0], "bg") == 0){
-            /*Execute a background process. Add it to the linkedlist if it is valid*/
+            /*Execute a background process and add it to the linkedlist if it is valid*/
             pid_t ex_code;
             pid_t pid = fork();
             if(pid==0){                 /*child*/
@@ -117,9 +117,11 @@ int main(){
                     i++;
                 }
                 argv[i]=NULL;           /*set last value to NULL for execvp*/
-
                 ex_code = execvp(argv[0],argv);
+                /*if user enters an invalid command then exit*/
                 if (ex_code == -1){
+                    printf("\ninvalid command\n");
+                    printf("%s@%s: %s >", username, hostname, cwd); /*prompt*/
                     exit(EXIT_FAILURE);
                 }else{
                     exit(0);
@@ -133,6 +135,9 @@ int main(){
                 }
 
                 if(root != NULL){
+                    /*after each iteration check if a child has terminated,
+                     * if a child has terminated then remove it from the 
+                     * linked list and print out which child has terminated.*/
                     pid_t ter = waitpid(0, NULL, WNOHANG);
                     while(ter > 0){
                         if(root->pid == ter){
@@ -159,7 +164,8 @@ int main(){
                 }
             }
         }else if(strcmp(argv[0], "bglist") == 0){
-            /*print pid and command of the running background processes*/
+            /*print pid and command of the running background processes
+             * by iterating through the linkedlist*/
             int count = 0;
             for (bg_pro* curr = root; curr != NULL; curr = curr->next){
                 count++;
@@ -171,11 +177,14 @@ int main(){
             pid_t pid = fork();
             if(pid==0){                 /*child*/
                 if (execvp(argv[0],argv) < 0){
-                    printf("invalid command\n");
+                    printf("case 2: invalid command\n");
                     exit(EXIT_FAILURE);
-                }
+                    }
             }else{                      /*parent*/
                 if(root != NULL){
+                    /*after each iteration check if a child has terminated,
+                     * if a child has terminated then remove it from the 
+                     * linked list and print out which child has terminated.*/
                     pid_t ter = waitpid(0, NULL, WNOHANG);
                     while(ter > 0){
                         if(root->pid == ter){
@@ -203,10 +212,10 @@ int main(){
                 wait(NULL);
             }
         }
+        if(root != NULL){
         /*after each iteration check if a child has terminated,
          * if a child has terminated then remove it from the 
          * linked list and print out which child has terminated.*/
-        if(root != NULL){
             pid_t ter = waitpid(0, NULL, WNOHANG);
             while(ter > 0){
                 if(root->pid == ter){
