@@ -119,7 +119,7 @@ int main(){
                 argv[i]=NULL;           /*set last value to NULL for execvp*/
 
                 ex_code = execvp(argv[0],argv);
-                if (ex_code < 0){
+                if (ex_code == -1){
                     exit(EXIT_FAILURE);
                 }else{
                     exit(0);
@@ -130,6 +130,32 @@ int main(){
                 if(ex_code != -1){
                     memmove(cp_line, cp_line+3, strlen(cp_line));
                     insert_end(&root, pid, cp_line);
+                }
+
+                if(root != NULL){
+                    pid_t ter = waitpid(0, NULL, WNOHANG);
+                    while(ter > 0){
+                        if(root->pid == ter){
+                            printf("%d:   %s has terminated\n", root->pid, root->command);
+                            bg_pro* temp = root;
+                            root = root->next;
+                            free(temp);
+                        }else{
+                            bg_pro* curr = root;
+                            while (curr->next != NULL){
+                                if(curr->next->pid == ter){
+                                    printf("%d:   %s has terminated\n", curr->next->pid, curr->next->command);
+                                    bg_pro* temp = curr->next;
+                                    curr->next = curr->next->next;
+                                    free(temp);
+                                }else{
+                                    curr = curr->next;
+                                }
+                            }
+                        }
+                        ter = waitpid(0,NULL,WNOHANG);
+                    }
+
                 }
             }
         }else if(strcmp(argv[0], "bglist") == 0){
@@ -149,6 +175,31 @@ int main(){
                     exit(EXIT_FAILURE);
                 }
             }else{                      /*parent*/
+                if(root != NULL){
+                    pid_t ter = waitpid(0, NULL, WNOHANG);
+                    while(ter > 0){
+                        if(root->pid == ter){
+                            printf("%d:   %s has terminated\n", root->pid, root->command);
+                            bg_pro* temp = root;
+                            root = root->next;
+                            free(temp);
+                        }else{
+                            bg_pro* curr = root;
+                            while (curr->next != NULL){
+                                if(curr->next->pid == ter){
+                                    printf("%d:   %s has terminated\n", curr->next->pid, curr->next->command);
+                                    bg_pro* temp = curr->next;
+                                    curr->next = curr->next->next;
+                                    free(temp);
+                                }else{
+                                    curr = curr->next;
+                                }
+                            }
+                        }
+                        ter = waitpid(0,NULL,WNOHANG);
+                    }
+
+                }
                 wait(NULL);
             }
         }

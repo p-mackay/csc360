@@ -1,8 +1,8 @@
 .phony all:
-all: test
+all: ssi
 
-test: test.c
-	gcc test.c -lreadline -lhistory -o test
+ssi: ssi.c
+	gcc ssi.c -lreadline -lhistory -o ssi
 
 .PHONY clean:
 clean:
