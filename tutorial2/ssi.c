@@ -6,6 +6,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <sys/wait.h>
+#include <signal.h>
 #define BUFFER_LEN 1024
 
 /*to store pid, command and address of next into a linked list*/
@@ -83,10 +84,13 @@ int main(){
         argv[i]=NULL;                       /*set last value to NULL for execvp*/
 
         if(!strcmp(line, "exit")){          /*check if command is exit*/
-            /*if there is a background process running when program is terminated
-             * then deallocate those nodes before closing*/
+        /*if there are background processes running when program is exited.
+         * then deallocate all nodes before closing. 
+         * Then terminate all children and parent processes*/
             if(root != NULL){
                 deallocate(&root);          
+                signal(SIGQUIT, SIG_IGN);
+                kill(0,SIGQUIT);
             }
             exit(0);
         }
@@ -177,7 +181,7 @@ int main(){
             pid_t pid = fork();
             if(pid==0){                 /*child*/
                 if (execvp(argv[0],argv) < 0){
-                    printf("case 2: invalid command\n");
+                    printf("invalid command\n");
                     exit(EXIT_FAILURE);
                     }
             }else{                      /*parent*/
@@ -209,7 +213,7 @@ int main(){
                     }
 
                 }
-                wait(NULL);
+                wait(NULL); /*wait for child to terminate*/
             }
         }
         if(root != NULL){
@@ -241,8 +245,13 @@ int main(){
 
         }
         if(!strcmp(line, "exit")){
+        /*if there are background processes running when program is exited.
+         * then deallocate all nodes before closing. 
+         * Then terminate all children and parent processes*/
             if(root != NULL){
                 deallocate(&root);
+                signal(SIGQUIT, SIG_IGN);
+                kill(0,SIGQUIT);
             }
             exit(0);
         }

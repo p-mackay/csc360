@@ -2,7 +2,7 @@
 all: ssi
 
 ssi: ssi.c
-	gcc ssi.c -lreadline -lhistory -o ssi
+	gcc ssi.c -lreadline -lhistory -ltermcap -o ssi
 
 .PHONY clean:
 clean:
