@@ -1,0 +1,85 @@
+Your Title Here
+Your Name
+October 16, 2023
+1. (a) Main thread (int main())
+i. Read input file: read a text file that contains priority, direction, loading time, and crossing
+time.
+ii. Create train threads in a loop create train threads using pthread create, then at the end use
+pthread join.
+iii. Initialize data structures: (1) Initialize train structs, each train has the following attributes:
+number, direction, priority, loadingTime, and crossingTime. (2) Initialize train priority queue.
+(3) Initialize Mutexes. (4) Initialize Condition Variables. (5) Initialize status flag for if all
+trains have crossed.
+iv. Manage the simulation time. Track the current state of each train: ready, ON, OFF.
+v. Coordinate the termination of the program once all trains have crossed. if all trains have
+passed then exit program.
+(b) Dispatcher thread:
+i. Monitor train status: monitor the status of each train including loading, ready, granted,
+crossing, and gone.
+ii. Decision making: make decisions to let a train cross depending on factors such as priority,
+and direction.
+iii. Rule enforcement: enforce simulation rules, such as only allowing loaded trains the ability to
+cross, prioritizing trains.
+iv. Communicate with train threads through mutex’s, and convars.
+v. Handle special cases such as, two trains are loaded and have high priority.
+(c) Train threads:
+i. Load time use usleep() to simulate the time it takes to load.
+ii. Wait for permission to cross from the dispatcher using mutex’s and convars.
+iii. Update status and notify dispatcher.
+2. (a) The threads do not work independently. There is a controller thread call the dispatcher thread
+that coordinates with each train using mutex’s and convars to grant or restrict access to the main
+crossing track.
+3. (a) Station Mutex: Guards access to the station data structure.
+(b) Train Mutex: Guards access to individual train data.
+(c) Queue Mutex: Ensures that modification to the queue, such as adding or removing trains, are
+synchronized.
+(d) Crossing Mutex: Guards access to the main track during train crossings.
+(e) Direction Mutex: Guards access to information about the last direction of the train that crossed
+the main track.
+4. (a) No the main thread will not be idle.
+
+1
+
+(b) The main thread will communicate with the dispatcher thread through with mutex’s and convars.
+And update the state of different attributes. For example it might change the stations status from
+loading to ready.
+5. (a) Priority queue.
+6. (a) Identify shared data structures.
+(b) Assign mutexes.
+(c) Use mutexes to guard critical sections.
+(d) Avoid deadlocks.
+7. (a) Convar for Train Loading: Represents the condition that a train has finished loading and ready to
+depart.Mutex associated with the station mutex, ensuring access to the station’s loading status.
+This ensures that the loading condition is checked and can be modified in a synchronized manner.
+Operation once it has been unblocked, the train thread should re-check the loading condition
+(loading status) and signal that it has been granted permission to cross.
+(b) Convar for Train Crossing Permission: Condition Represents the condition that a train has been
+granted permission to cross the main track. Mutex Associated with the crossing mutex, guarding
+access to the main track during train crossings. This ensures that the crossing condition is check
+and modified when a train is supposed to cross or not. Operation once it has been unblocked,
+the train thread should check the crossing condition and proceed to cross the main track.
+(c) Convar for Queue Modification: Condition Represents the condition that the station queue has
+been modified (a train has been added or removed). Mutex Associated with the queue mutex,
+controlling access to the stations queue. This ensures that queue modifications are synchronized.
+Operation Once pthread cond wait() has been unblocked, the train thread should re-check the
+queue modification condition. If there has been a modification like a train has been added or
+removed from the queue then the position of the current train on the queue will be calculated.
+(d) Convar for Direction Decisions: Condition Represents the condition that the direction of the
+next train has been made. Mutex Associated with the direction mutex, guarding information
+about the last direction of the train that crossed the main track. This ensures that direction
+decisions are synchronized. Operation Once it has been unblocked the train thread should recheck the direction condition, and make a decision based on what direction the next train should
+go.
+8. (a) If a train is loaded, acquire the station mutex to safely modify station data.
+(b) Add the loaded train to the station’s queue for departure.
+(c) Release the station mutex to allow other threads to access shared station resources.
+(d) Train threads wait for permission from the dispatcher to cross the main track.
+(e) Dispatcher monitors statuses, applies rules, and grants permission based on priorities.
+(f) Utilize mutexes to synchronize access to critical sections and shared resources.
+(g) Employ condition variables for efficient signaling of events like queue modification.
+(h) Simulate train crossings, update statuses, and notify the dispatcher when done.
+(i) Print simulation output: train arrivals, crossings, and departures with proper timing.
+(j) Ensure thread synchronization to prevent race conditions and maintain program integrity.
+
+2
+
+

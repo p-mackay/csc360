@@ -1,0 +1,160 @@
+\documentclass{article} % Use the custom resume.cls style
+\usepackage{enumitem}
+\usepackage{multicol}
+\usepackage{listings}
+\renewcommand{\familydefault}{\sfdefault}
+
+\title{Written Assignment 1 (W1) CSc360 OS}
+\author{Paul MacKay V00967869}
+
+\begin{document}
+\maketitle
+
+\begin{enumerate}
+    \item
+        \begin{enumerate}[label=(\alph*)]
+            \item
+                \begin{itemize}
+                    \item While in user mode (mode bit = 1), the user does not have direct access to the 
+                        operating system. Meaning - a user program must ask the operating system
+                        first before the application is ran. If the operating system validates that
+                        it is a legitimate program then the operating system executes it by 
+                        switching to kernel mode (mode bit = 0).
+                    \item When in kernel mode the program has the privilege to execute. 
+                \end{itemize}
+                \hfill
+            \item
+                \begin{itemize}
+                    \item For example if an operating system did not have two modes
+                        (user and kernel) then it would be possible for the user
+                        to wipe out the entire operating system by overwriting 
+                        it, or delete it.
+                \end{itemize}
+                \hfill
+            \item
+                \begin{itemize}
+                    \item Mode switching is when an operating system switches between 
+                        user or kernel modes. Which protects the operating system from
+                        getting corrupted or deleted.
+                    \item   
+                        Context switching is when the CPU switches from one process to another.
+                        This is achieved by saving the state of the current process, and 
+                        continues to execute a different process.
+                \end{itemize}
+                \hfill
+            \item
+                \begin{itemize}
+                    \item             
+                        Pros: Because the microkernel is smaller: (1) it makes it easier to port 
+                        from one system to another. (2) Its more secure. 
+                    \item   
+                        Because of system overhead the performance of microkernels can suffer.
+                        For example Windows NT(used a microkernel) performance 
+                        was worse than Windows 95(didn't use microkernel).
+                \end{itemize}
+                \hfill
+        \end{enumerate}
+        \newpage
+    \item
+        \begin{enumerate}
+            \item
+                \begin{enumerate}[label={}]
+                        Possible output:
+                        \begin{multicols}{2}
+                        \item 0
+                        \item 1 
+                        \item 2
+                            \columnbreak
+                        \item 0
+                        \item 2
+                        \item 1
+                        \end{multicols}
+                \end{enumerate}
+                \hfill
+            \item
+                \begin{lstlisting}[language=C]
+    #define OUTPUT printf("%d\n", i)
+    main() {
+        int i=0;
+        OUTPUT;
+        if (fork()) {
+            i+=2;
+            OUTPUT;
+        } else {
+            i+=1;
+            OUTPUT;
+            wait(NULL); /*system call*/
+            return(0);
+        }
+    }
+                \end{lstlisting}
+        \end{enumerate}
+        \hfill
+    \item
+        \begin{enumerate}[label=(\alph*)]
+            \item
+                        running-to-waiting
+                \begin{itemize}
+                    \item 
+                        Given that only one process can be running at a time.
+                        The processor must switch between running-waiting-ready...
+                        frequently.
+                    \item 
+                        An example of this would be if a process is running
+                        then the scheduler issues an I/O request. Or The 
+                        process creates a child process then waits for the 
+                        child process to execute.
+                \hfill
+                \end{itemize}
+            \item
+                        waiting-to-running
+                \begin{itemize}
+                    \item 
+                        Not feasible. Since the ready queue uses a linked list
+                        to store all ready processes. The process would not 
+                        be added to the linked list and would be lost, and would
+                        never run.
+                \end{itemize}
+                \hfill
+            \item
+                        waiting-to-ready
+                \begin{itemize}
+                    \item 
+                        After the I/O request is finished. Or the Child process
+                        is done executing. We return back to the ready state.
+                \end{itemize}
+                \hfill
+            \item
+                        ready-to-waiting
+                \begin{itemize}
+                    \item 
+                        Not feasible. Since the process is in the ready state. 
+                        It is in the ready queue waiting to be executed. This means
+                        that it doesn't have the ability to issue a child process,
+                        or an I/O request.
+                \end{itemize}
+                \newpage
+            \item
+                        ready-to-running
+                \begin{itemize}
+                    \item 
+                        The CPU scheduler chooses the process from the 
+                        ready queue to be executed.
+                \end{itemize}
+                \hfill
+            \item
+                        running-to-ready
+                \begin{itemize}
+                    \item 
+                        Once a process is finished executing an interrupt is issued
+                        to communicates to the CPU that the process is finished 
+                        executing.
+                \end{itemize}
+                \hfill
+        \end{enumerate}
+
+\end{enumerate}
+
+
+\end{document}
+

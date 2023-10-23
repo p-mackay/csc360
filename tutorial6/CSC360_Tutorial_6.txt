@@ -1,0 +1,430 @@
+OPERATING SYSTEMS
+TUTORIAL 6
+
+1
+
+Contents
+
+• P1 & P2 Design Comments
+• Spurious Wakeup, Lost Signal,
+Deadlock
+• Code Hints
+2
+
+P1 Comments
+Statistics:
+Mean score (across all submissions):
+Mean score (across all submissions that built):
+Minimum non-zero score:
+Maximum score:
+
+8.76/15 (58.4%)
+12.20/15 (74.7%)
+6.75/15 (45.0%)
+17.50/15 (116.7%)
+
+Common Mistakes:
+• Error handling.
+• A large proportion (probably >50%) of the class printed the current working directory
+before command names in `bglist`, even though in general the program running in the
+background is not located in the current working directory.
+• Many students overcomplicated the cd logic. Both . and .. are actual files on the
+filesystem.
+• *Starter code.
+A full breakdown of P1 grading (and marking scripts)
+will be posted to Teams.
+3
+
+Anyone want to present their
+design?
+(Discussion)
+
+4
+
+Design General Comments
+1. Dispatcher thread
+a. Who is using a dispatcher thread? Who is not?
+i. Why?
+b. Is this thread always running?
+2. How to ensure all trains are start loading at the same time?
+a. If using convar, how to ensure that all trains are waiting?
+i. Why is it a problem if they are not?
+3. How to keep track of when all trains have finished?
+4. Timers? Crossing direction? Consecutive trains?
+
+5
+
+Design General Comments Cont’d
+1. Convars need mutexes!
+a. Do we need a mutex per train then?
+b. Convars need conditions!
+2. Stations
+a. Array vs Queue?
+b. 1 Queue vs 2 Queues vs 4 Queues?
+i. Is one enough?
+ii. How many mutexes are needed?
+
+6
+
+Global CV? Local CV?
+Mutex(es)?
+
+A possible design.
+
+loop
+
+read input file,
+create train threads
+
+wait to start loading
+
+broadcast start
+loading
+
+usleep(loading time)
+
+check/wait for ready
+trains
+
+add to queue,
+change train status, and signal
+
+dispatcher chooses /
+signals next train to cross
+
+wait for signal to
+cross
+
+wait until finished
+crossing
+
+usleep(crossing time)
+signal
+
+end if all trains have
+crossed
+
+exit
+
+Main / Dispatcher Thread
+
+Train Thread
+
+Is this
+design
+complete?
+
+7
+
+Contents
+
+• P1 & P2 Design Comments
+• Spurious Wakeup, Lost Signal,
+Deadlock
+• Code Hints
+8
+
+Why use while? Why not if?
+void consumer(void)
+{
+mutex_lock(&m);
+while (items_in_buffer == 0)
+pthread_cond_wait(&item_available, &m);
+/* Consume item */
+items_in_buffer--;
+pthread_cond_signal(&space_available);
+mutex_unlock(&m);
+}
+void producer(void)
+{
+mutex_lock(&m);
+while (items_in_buffer == max_items)
+pthread_cond_wait(&space_available, &m);
+/* Produce item */
+items_in_buffer++;
+pthread_cond_signal(&item_available);
+mutex_unlock (&m);
+}
+
+Why use while? Why not if?
+
+Guard against spurious wakeup
+void consumer(void)
+{
+mutex_lock(&m);
+while (items_in_buffer == 0)
+pthread_cond_wait(&item_available, &m);
+/* Consume item */
+items_in_buffer--;
+pthread_cond_signal(&space_available);
+mutex_unlock(&m);
+}
+void producer(void)
+{
+mutex_lock(&m);
+while (items_in_buffer == max_items)
+pthread_cond_wait(&space_available, &m);
+/* Produce item */
+items_in_buffer++;
+pthread_cond_signal(&item_available);
+mutex_unlock (&m);
+}
+
+Signal Lost
+• What happens if you call pthread_cond_signal()
+before calling pthread_cond_wait()?
+Thread 1:
+pthread_cond_signal(&c)
+
+Thread 2:
+?
+
+pthread_cond_wait_(&c, &m)
+
+12
+
+Deadlock
+pthread_mutex_t A;
+pthread_mutex_t B;
+
+Thread 1:
+
+Thread 2:
+
+pthread_mutex_lock(&A);
+⋮
+pthread_mutex_lock(&B);
+⋮
+transfer(200, &A, &B);
+⋮
+pthread_mutex_unlock(&B);
+⋮
+pthread_mutex_unlock(&A);
+
+pthread_mutex_lock(&B);
+⋮
+pthread_mutex_lock(&A);
+⋮
+transfer(200, &A, &B);
+⋮
+pthread_mutex_unlock(&A);
+⋮
+pthread_mutex_unlock(&B);
+
+Deadlock
+pthread_mutex_t A; 🔒 by thread 1
+pthread_mutex_t B;
+
+Thread 1:
+
+Thread 2:
+
+pthread_mutex_lock(&A);
+⋮
+pthread_mutex_lock(&B);
+⋮
+transfer(200, &A, &B);
+⋮
+pthread_mutex_unlock(&B);
+⋮
+pthread_mutex_unlock(&A);
+
+pthread_mutex_lock(&B);
+⋮
+pthread_mutex_lock(&A);
+⋮
+transfer(200, &A, &B);
+⋮
+pthread_mutex_unlock(&A);
+⋮
+pthread_mutex_unlock(&B);
+
+Deadlock
+pthread_mutex_t A; 🔒 by thread 1
+pthread_mutex_t B; 🔒 by thread 2
+
+Thread 1:
+
+Thread 2:
+
+pthread_mutex_lock(&A);
+⋮
+pthread_mutex_lock(&B);
+⋮
+transfer(200, &A, &B);
+⋮
+pthread_mutex_unlock(&B);
+⋮
+pthread_mutex_unlock(&A);
+
+pthread_mutex_lock(&B);
+⋮
+pthread_mutex_lock(&A);
+⋮
+transfer(200, &A, &B);
+⋮
+pthread_mutex_unlock(&A);
+⋮
+pthread_mutex_unlock(&B);
+
+Deadlock
+pthread_mutex_t A; 🔒 by thread 1
+pthread_mutex_t B; 🔒 by thread 2
+
+Thread 1:
+
+Thread 2:
+
+pthread_mutex_lock(&A);
+⋮
+pthread_mutex_lock(&B);
+⋮
+transfer(200, &A, &B);
+⋮
+pthread_mutex_unlock(&B);
+⋮
+pthread_mutex_unlock(&A);
+
+pthread_mutex_lock(&B);
+⋮
+pthread_mutex_lock(&A);
+⋮
+transfer(200, &A, &B);
+⋮
+pthread_mutex_unlock(&A);
+⋮
+pthread_mutex_unlock(&B);
+
+Deadlock
+pthread_mutex_t A; 🔒 by thread 1
+pthread_mutex_t B; 🔒 by thread 2
+
+Thread 1:
+
+Thread 2:
+
+pthread_mutex_lock(&A);
+⋮
+pthread_mutex_lock(&B);
+⋮
+transfer(200, &A, &B);
+⋮
+pthread_mutex_unlock(&B);
+⋮
+pthread_mutex_unlock(&A);
+
+pthread_mutex_lock(&B);
+⋮
+pthread_mutex_lock(&A);
+⋮
+transfer(200, &A, &B);
+⋮
+pthread_mutex_unlock(&A);
+⋮
+pthread_mutex_unlock(&B);
+
+Contents
+
+• P1 & P2 Design Comments
+• Spurious Wakeup, Lost Signal,
+Deadlock
+• Code Hints
+18
+
+pthread_create
+#include <pthread.h>
+int pthread_create(pthread_t *thread,
+const pthread_attr_t *attr,
+void *(*start_routine) (void *),
+void *arg);
+
+● Compile and link with -pthread.
+● Example code:
+○ https://hpc-tutorials.llnl.gov/posix/samples/hello.c
+
+19
+
+Passing Arguments
+long taskids[NUM_THREADS];
+for(t = 0; t < NUM_THREADS; t++)
+{
+taskids[t] = t;
+printf("Creating thread %ld\n", t);
+rc = pthread_create(&threads[t], NULL, PrintHello,
+(void *) taskids[t]);
+/* ... */
+}
+
+● https://hpc-tutorials.llnl.gov/posix/passing_args/
+20
+
+Passing Arguments Cont’d
+struct thread_data {
+int thread_id;
+int sum;
+char *message;
+};
+struct thread_data thread_data_array[NUM_THREADS];
+void *PrintHello(void *threadarg)
+{
+struct thread_data *my_data;
+...
+my_data = (struct thread_data *) threadarg;
+taskid = my_data->thread_id;
+sum = my_data->sum;
+hello_msg = my_data->message;
+...
+}
+
+● https://hpc-tutorials.llnl.gov/posix/passing_args/
+
+21
+
+Passing Arguments Cont’d
+int main (int argc, char *argv[])
+{
+...
+thread_data_array[t].thread_id = t;
+thread_data_array[t].sum = sum;
+thread_data_array[t].message = messages[t];
+rc = pthread_create(&threads[t], NULL, PrintHello,
+(void *) &thread_data_array[t]);
+...
+}
+
+● https://hpc-tutorials.llnl.gov/posix/passing_args/
+22
+
+Calculate Running Time
+#define BILLION
+
+1000000000L;
+
+int main( int argc, char **argv )
+{
+struct timespec start, stop;
+double accum;
+if( clock_gettime( CLOCK_MONOTONIC, &start) == -1 ) {
+perror( "clock gettime" );
+exit( EXIT_FAILURE );
+}
+system( argv[1] );
+if( clock_gettime( CLOCK_MONOTONIC, &stop) == -1 ) {
+perror( "clock gettime" );
+exit( EXIT_FAILURE );
+}
+
+}
+
+●
+
+accum = ( stop.tv_sec - start.tv_sec )
++ ( stop.tv_nsec - start.tv_nsec )
+/ BILLION;
+
+/* nsec = nanosecond */
+
+https://users.pja.edu.pl/~jms/qnx/help/watcom/clibref/qnx/clock_gettime.html
+23
+
+

@@ -1,0 +1,63 @@
+# Define Train Structure
+struct Train:
+    int number
+    string direction
+    string priority
+    int loadingTime
+    int crossingTime
+    enum State { Loading, Ready, Granted, Crossing, Gone }
+    State state
+
+# Global Variables
+List<Train> stationEast
+List<Train> stationWest
+Mutex stationMutex
+ConditionVariable startLoadingCV
+ConditionVariable crossCV
+
+# Function to Simulate Loading
+function loadTrain(train):
+    usleep(train.loadingTime * 100000)  # Convert loading time to microseconds
+    train.state = Ready
+    signal startLoadingCV
+
+# Function to Simulate Crossing
+function crossTrain(train):
+    wait until granted to cross
+    usleep(train.crossingTime * 100000)  # Convert crossing time to microseconds
+    train.state = Gone
+    signal crossCV
+
+# Dispatcher Thread
+function dispatcher():
+    loop:
+        if there are trains in station:
+            signal startLoadingCV  # Start loading process
+            wait until all trains are ready
+            determine which train to grant permission to cross
+            signal crossCV  # Grant permission to cross
+
+# Train Thread
+function trainThread(train):
+    acquire stationMutex
+    add train to appropriate station
+    release stationMutex
+    wait on startLoadingCV
+    loadTrain(train)
+    acquire stationMutex
+    remove train from station
+    release stationMutex
+    signal crossCV
+    crossTrain(train)
+
+# Main Program
+initialize stationMutex
+initialize startLoadingCV
+initialize crossCV
+create dispatcher thread
+
+for each train in input file:
+    create train thread for the train
+
+join all train threads
+

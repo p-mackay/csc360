@@ -1,0 +1,153 @@
+\documentclass[10pt]{article}
+\usepackage[letterpaper, margin=1in]{geometry}
+\renewcommand{\familydefault}{\sfdefault}
+\begin{document}
+
+\title{Assignment: p2a}
+\author{Paul Mackay V00967869}
+\date{\today}
+
+\maketitle
+
+\begin{enumerate}
+    \item 
+        \begin{enumerate}
+            \item Main thread (int main()) 
+                \begin{enumerate}
+                    \item Read input file: read a text file that contains
+                        priority, direction, loading time, and crossing time.
+                    \item Create train threads 
+                        in a loop create train threads using pthread\_create, then
+                        at the end use pthread\_join.
+                    \item Initialize data structures: 
+                        (1) Initialize train structs, each train has the following attributes: number,
+                        direction, priority, loadingTime, and crossingTime.
+                        (2) Initialize train priority queue.
+                        (3) Initialize Mutexes.
+                        (4) Initialize Condition Variables.
+                        (5) Initialize status flag for if all trains have crossed.
+                    \item Manage the simulation time.
+                        Track the current state of each train: ready, ON, OFF. 
+                    \item Coordinate the termination of the program once all trains have crossed.
+                        if all trains have passed then exit program.
+                \end{enumerate}
+            \item Dispatcher thread: 
+                \begin{enumerate}
+                    \item Monitor train status: monitor the status of each train
+                        including loading, ready, granted, crossing, and gone.
+                    \item Decision making: make decisions to let a train cross
+                        depending on factors such as priority, and direction.
+                    \item
+                        Rule enforcement: enforce simulation rules, such as
+                        only allowing loaded trains the ability to cross, 
+                        prioritizing trains.
+                    \item
+                        Communicate with train threads through mutex's, and convars.
+                    \item
+                        Handle special cases such as, two trains are loaded and
+                        have high priority. 
+
+                \end{enumerate}
+            \item Train threads:
+                \begin{enumerate}
+                    \item Load time use usleep() to simulate the time it takes
+                        to load. 
+                    \item Wait for permission to cross from the dispatcher 
+                        using mutex's and convars.
+                    \item
+                        Update status and notify dispatcher.
+                \end{enumerate}
+        \end{enumerate}
+    \item
+        \begin{enumerate}
+            \item The threads do not work independently. There is a controller thread
+                call the dispatcher thread that coordinates with each train 
+                using mutex's and convars to grant or restrict access to the 
+                main crossing track.
+        \end{enumerate}
+    \item
+        \begin{enumerate}
+            \item Station Mutex: Guards access to the station data structure.
+            \item Train Mutex: Guards access to individual train data.
+            \item Queue Mutex: Ensures that modification to the queue, such
+                as adding or removing trains, are synchronized. 
+            \item Crossing Mutex: Guards access to the main track during train crossings. 
+            \item Direction Mutex: Guards access to information about the last
+                direction of the train that crossed the main track.
+        \end{enumerate}
+    \item
+        \begin{enumerate}
+            \item No the main thread will not be idle.
+            \item The main thread will communicate with the dispatcher thread
+                with mutex's and convars. And update the state of 
+                different attributes. For example it might change the stations
+                status from loading to ready.
+        \end{enumerate}
+    \item 
+        \begin{enumerate}
+            \item Priority queue.
+        \end{enumerate}
+    \item 
+        \begin{enumerate}
+            \item Identify shared data structures.
+            \item Assign mutexes.
+            \item Use mutexes to guard critical sections.
+            \item Avoid deadlocks.
+        \end{enumerate}
+    \item 
+        \begin{enumerate}
+            \item Convar for Train Loading:
+                Represents the \textbf{condition} that a train has finished loading and
+                ready to depart.\textbf{Mutex} associated with the station mutex,
+                ensuring access to the station's loading status. This ensures that 
+                the loading condition is checked and can be modified in a 
+                synchronized manner. \textbf{Operation} once it
+                has been unblocked, the train thread should re-check the 
+                loading condition (loading status) and signal that it has been
+                granted permission to cross.
+
+            \item Convar for Train Crossing Permission:
+                \textbf{Condition} Represents the condition that a train has been
+                granted permission to cross the main track.
+                \textbf{Mutex} Associated with the crossing mutex, 
+                guarding access to the main track during train crossings.
+                This ensures that the crossing condition is check and modified 
+                when a train is supposed to cross or not.
+                \textbf{Operation} once it has been unblocked, the train thread
+                should check the crossing condition and proceed to cross the 
+                main track.
+            \item Convar for Queue Modification:
+                \textbf{Condition} Represents the condition that the station queue has been modified
+                (a train has been added or removed).
+                \textbf{Mutex} Associated with the queue mutex, controlling access
+                to the stations queue. This ensures that queue modifications
+                are synchronized.
+                \textbf{Operation} Once pthread\_cond\_wait() has been unblocked,
+                the train thread should re-check the queue modification condition.
+                If there has been a modification like a train has been added or 
+                removed from the queue then the position of the current train 
+                on the queue will be calculated.
+            \item Convar for Direction Decisions:
+                \textbf{Condition} Represents the condition that the 
+                direction of the next train has been made.
+                \textbf{Mutex} Associated with the direction mutex, 
+                guarding information about the last direction of 
+                the train that crossed the main track. This ensures
+                that direction decisions are synchronized.
+                \textbf{Operation} Once it has been unblocked the train thread
+                should re-check the direction condition, and make a decision 
+                based on what direction the next train should go.
+        \end{enumerate}
+    \item
+        \begin{enumerate}
+            \item If a train is loaded, acquire the station mutex to safely modify station data.
+            \item Add the loaded train to the station's queue for departure.
+            \item Release the station mutex to allow other threads to access shared station resources.
+            \item Train threads wait for permission from the dispatcher to cross the main track.
+            \item Dispatcher monitors statuses, applies rules, and grants permission based on priorities.
+            \item Simulate train crossings, update statuses, and notify the dispatcher when done.
+            \item Print simulation output: train arrivals, crossings, and departures with proper timing.
+        \end{enumerate}
+\end{enumerate}
+\end{document}
+

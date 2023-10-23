@@ -1,0 +1,295 @@
+OPERATING SYSTEMS
+TUTORIAL 5
+
+1
+
+Contents
+
+• P2 specification go-through
+• IO & useful functions
+• Design hints
+
+2
+
+Multi-Thread Scheduling (MTS)
+Simulation
+• Two stations
+• One main track
+
+3
+
+Multi-Thread Scheduling (MTS)
+Simulation
+• Two stations
+• One main track
+
+Station
+
+Station
+4
+
+Multi-Thread Scheduling (MTS)
+Simulation
+• Two stations
+• One main track
+
+Main Track
+5
+
+MTS Simulation (Trains)
+
+* Trains are threads!
+
+Train
+- Number
+- 0, 1, ...
+- Direction
+- East
+- West
+- Priority
+- High
+- Low
+- Loading Time
+- [1, 99] ds
+- Crossing time
+- [1, 99] ds
+
+6
+
+MTS Simulation (Control System)
+• Automated Control System
+– At each station, trains are loaded with commodities.
+– Each train commences its loading process simultaneously
+at a common start time 0.
+• Some trains take more time to load, some less.
+– After a train is loaded, it patiently awaits permission to
+cross the main track, subject to certain rules (next slide).
+• Only one train can be on the main track at any given
+time.
+– After a train finishes crossing, it magically disappears (i.e.,
+the train thread finishes).
+7
+
+MTS Simulation (Rules)
+1.
+2.
+3.
+4.
+
+Only one train is on the main track at any given time.
+Only loaded trains can cross the main track.
+If there are multiple loaded trains, the one with the high priority crosses.
+If two loaded trains have the same priority, then:
+a. If they are both traveling in the same direction, the train which
+finished loading first gets the clearance to cross first. If they finished
+loading at the same time, the one that appeared first in the input file
+gets the clearance to cross first.
+b. If they are traveling in opposite directions, pick the train which will
+travel in the direction opposite of which the last train to cross the
+main track traveled. If no trains have crossed the main track yet, the
+Westbound train has the priority.
+c. If there are three trains in the same direction traveling
+through the main track back to back, the trains waiting
+in the opposite direction get a chance to dispatch one
+8
+train if any.
+
+9
+
+Deliverables
+
+1. Design document (Oct 16, 2023)
+2. Code (Oct 30, 2023)
+
+10
+
+Deliverable A: Design Document
+1. How many threads are you going to use? Specify the work
+that you intend each thread to perform.
+2. Do the threads work independently? Or, is there an overall
+“controller” thread?
+3. How many mutexes are you going to use? Specify the
+operation that each mutex will guard.
+4. Will the main thread be idle? If not, what will it be doing?
+5. How are you going to represent stations (which are
+collections of loaded trains ready to depart)? That is, what
+type of data structure will you use?
+6. How are you going to ensure that data structures in
+your program will not be modified concurrently?
+
+11
+
+Deliverable A: Design Document Cont’d
+7. How many convars are you going to use? For each convar:
+a. Describe the condition that the convar will represent.
+b. Which mutex is associated with the convar? Why?
+c. What operation should be performed once
+pthread_cond_wait() has been unblocked and
+re-acquired the mutex?
+8. In 15 lines or less, briefly sketch the overall algorithm you will use.
+Ex: If train is loaded, get station mutex, put into queue, release
+station mutex.
+* PDF, 2 pages maximum.
+12
+
+Deliverable B: Code
+1. The name of the submission file must be p2.tar.gz.
+2. p2.tar.gz must contain all your files in a directory named
+p2.
+3. Inside the directory p2, there must be a Makefile. Also there
+shall be a test input file created by you.
+4. Invoking make on it must result in an executable named mts
+being built, without user intervention.
+5. You may not submit the assignment with a compiled
+executable and/or object (.o) files; the script will delete them
+before invoking make.
+13
+
+Contents
+
+• P2 specification go-through
+• IO & useful functions
+• Design hints
+
+14
+
+Input
+
+Direction & Priority
+Loading time
+Crossing time
+
+* Time in 10-1 s.
+
+in.txt
+0 e 10 6
+1 W 6 7
+2 E 3 10
+
+./mts in.txt
+
+15
+
+Useful functions
+1. File access
+a. atoi
+b. fopen
+c. feof
+d. fgets and strtok
+or fscanf
+e. fclose
+2. Thread manipulation
+a. pthread_create
+b. pthread_exit
+c. pthread_join
+
+3. Mutex manipulation
+a. pthread_mutex_init
+b. pthread_mutex_lock
+c. pthread_mutex_unlock
+4. Convar manipulation
+a. pthread_cond_init
+b. pthread_cond_wait
+c. pthread_cond_broadcast
+d. pthread_cond_signal
+* Tutorial 4
+
+16
+
+Contents
+
+• P2 specification go-through
+• IO & useful functions
+• Design hints
+
+17
+
+Your design ideas?
+(Discussion)
+
+18
+
+Create Trains
+1. Read the input file from the given argument.
+2. Create train objects.
+a. Possible states?
+i. Loading
+ii. Ready
+iii. Granted
+iv. Crossing
+v. Gone
+3. Simulation time?
+a. clock_gettime(CLOCK_MONOTONIC, &begin);
+b. clock_gettime(CLOCK_MONOTONIC, &end);
+19
+
+Dispatcher
+•
+•
+•
+•
+
+If trains are “Ready”…
+If all trains have “Gone”…
+If there exists a train whose status is “Granted”…
+If there is no train whose status is “Ready”…
+
+20
+
+Global CV? Local CV?
+Mutex(es)?
+
+A possible design.
+
+loop
+
+read input file,
+create train threads
+
+wait to start loading
+
+broadcast start
+loading
+
+usleep(loading time)
+
+check/wait for ready
+trains
+
+add to queue,
+change train status, and signal
+
+dispatcher chooses /
+signals next train to cross
+
+wait for signal to
+cross
+
+wait until finished
+crossing
+
+usleep(crossing time)
+signal
+
+end if all trains have
+crossed
+
+exit
+
+Main / Dispatcher Thread
+
+Train Thread
+
+Is this
+design
+complete?
+
+21
+
+Image Credits
+
+• Image by macrovector on Freepik
+
+22
+
+
