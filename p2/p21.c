@@ -13,12 +13,10 @@
 struct timespec start, stop;
 double accum;
 
-
-
-
 pthread_mutex_t station_mutex, track_mutex;
 pthread_cond_t ready_cv, cross_cv, on_track_cv;
 
+// Train structure
 typedef struct {
     int number;
     char direction;
@@ -28,105 +26,116 @@ typedef struct {
     pthread_cond_t *train_cv;
 } Train;
 
+// Node structure for the linked list
+typedef struct Node {
+    Train* data;
+    int priority;
+    struct Node* next;
+} Node;
 
-// Queue code VVV
-//----------------------------------------------------------------
-// Node  
-typedef struct node {  
-    Train* data;  
-    int priority;  
-    struct node* next;  
-  
-} Node;  
-
+// Priority Queue structure
 typedef struct {
     Node* front;
 } PriorityQueue;
-  
-// Function to Create A New Node  
-Node* newNode(Train* data){
-    Node* temp = (Node*)malloc(sizeof(Node));  
-    temp->data = data;  
-    temp->priority = data->priority;  
-    temp->next = NULL;  
-  
-    return temp;  
-}  
 
+// Function to create a new node
+Node* newNode(Train* data) {
+    Node* temp = (Node*)malloc(sizeof(Node));
+    temp->data = data;
+    temp->priority = data->priority;
+    temp->next = NULL;
+    return temp;
+}
+
+// Function to create a new priority queue
 PriorityQueue* createPriorityQueue() {
     PriorityQueue* queue = (PriorityQueue*)malloc(sizeof(PriorityQueue));
     queue->front = NULL;
     return queue;
 }
-  
-// Return the value at head  
-Train* peek(Node** head)  
-{  
-    return (*head)->data;  
-}  
 
-int peekPriority(Node** head)  
-{  
-    return (*head)->priority;  
-}  
-
-  
-// Removes the element with the  
-// highest priority from the list  
-void pop(Node** head)  
-{  
-    if (*head == NULL){
-        return;
-    }else{
-        Node* temp = *head;  
-        (*head) = (*head)->next;  
-        free(temp);  
-    }
-}  
-  
-// Function to push according to priority  
-void push(Node** head, Train* data) {
+// Function to enqueue a new element into the priority queue
+void enqueue(PriorityQueue* queue, Train* data) {
     // Create new Node
     Node* temp = newNode(data);
 
-    // Special Case: The head of the list has lesser
-    // priority than the new node. So insert the new
-    // node before the head node and change the head node.
-    if (*head == NULL || (*head)->priority < temp->priority) {
-        temp->next = *head;
-        *head = temp;
+    // Special Case: The queue is empty or the new node has higher priority than the front.
+    // So insert the new node before the front node and change the front node.
+    if (queue->front == NULL || data->priority > queue->front->priority) {
+        temp->next = queue->front;
+        queue->front = temp;
     } else {
-        // Traverse the list and find a
-        // position to insert the new node.
-        Node* start = *head;
+        // Traverse the list and find a position to insert the new node.
+        Node* start = queue->front;
         while (start->next != NULL && start->next->priority >= temp->priority) {
             start = start->next;
         }
 
-        // Either at the ends of the list
-        // or at the required position.
+        // Either at the ends of the list or at the required position.
         temp->next = start->next;
         start->next = temp;
     }
 }
 
+// Function to dequeue the element with the highest priority
+Train* dequeue(PriorityQueue* queue) {
+    if (queue->front == NULL) {
+        printf("Priority Queue is empty.\n");
+        return NULL; // Return a sentinel value indicating an empty queue
+    }
+
+    Node* temp = queue->front;
+    Train* data = temp->data;
+    queue->front = temp->next;
+    free(temp);
+
+    return data;
+}
+
+// Function to check if the priority queue is empty
+int isEmpty(PriorityQueue* queue) {
+    return queue->front == NULL;
+}
+
+// Function to peek at the front element of the priority queue
+Train* peek(PriorityQueue* queue) {
+    if (queue->front == NULL) {
+        printf("Priority Queue is empty.\n");
+        return NULL;
+    }
+    return queue->front->data;
+}
+
+// Function to peek at the priority of the front element of the priority queue
+int peekPriority(PriorityQueue* queue) {
+    if (queue->front == NULL) {
+        printf("Priority Queue is empty.\n");
+        return -1; // Return a sentinel value indicating an empty queue
+    }
+    return queue->front->priority;
+}
+
+// Function to free the memory allocated for the priority queue
+void destroyQueue(PriorityQueue* queue) {
+    while (queue->front != NULL) {
+        Node* temp = queue->front;
+        queue->front = temp->next;
+        free(temp);
+    }
+    free(queue);
+}
+
+//----------------------------------------------------------------
+//
 //==================================
 //Global Variables 
-Node* westBoundStation;
-Node* eastBoundStation;
+PriorityQueue* westBoundStation;
+PriorityQueue* eastBoundStation;
 int numTrains = 0;
 int builtTrains = 0;
 int dispatching = 0;
 int on_track = 0;
 //==================================
-
-  
-// Function to check is list is empty  
-int isEmpty(Node** head)  
-{  
-    return (*head) == NULL;  
-}  
-//----------------------------------------------------------------
 
 int getNumTrains(FILE *file){
     int count = 0;
@@ -253,23 +262,39 @@ void *train_thread_routine(void *arg) {
     printf("Train %d is ready to go %s.\n", train->number, getDirection(train->direction));
 
     pthread_mutex_lock(&station_mutex);
-    if (train->direction == 'E' || train->direction == 'e') {
-        push(&eastBoundStation, train);
+
+    // Check if there is a train on the track and compare priorities
+    if (on_track) {
+        PriorityQueue* currentQueue = train->direction == 'E' ? eastBoundStation : westBoundStation;
+
+        // Check if the priority queue is not empty
+        if (!isEmpty(currentQueue)) {
+            Train* onTrackTrain = peek(currentQueue);
+            if (train->priority > onTrackTrain->priority) {
+                // High-priority train proceeds immediately
+                enqueue(currentQueue, train);
+            } else {
+                // Low-priority train waits in the priority queue
+                enqueue(currentQueue, train);
+                pthread_mutex_unlock(&station_mutex);
+                pthread_cond_broadcast(&ready_cv);
+                pthread_mutex_lock(&track_mutex);
+                while (on_track) {
+                    pthread_cond_wait(&on_track_cv, &track_mutex);
+                }
+                on_track = 1;  // Mark the track as occupied
+                pthread_mutex_unlock(&track_mutex);
+            }
+        } else {
+            // If the priority queue is empty, the current train proceeds immediately
+            enqueue(currentQueue, train);
+            pthread_mutex_unlock(&station_mutex);
+        }
     } else {
-        push(&westBoundStation, train);
+        // If no train on track, high-priority train proceeds immediately
+        on_track = 1;
+        pthread_mutex_unlock(&station_mutex);
     }
-    pthread_mutex_unlock(&station_mutex);
-    pthread_cond_broadcast(&ready_cv);
-
-    // Wait for the track to be available
-    pthread_mutex_lock(&track_mutex);
-    while (on_track) {
-
-        pthread_cond_wait(&on_track_cv, &track_mutex);
-    }
-
-    on_track = 1;  // Mark the track as occupied
-    pthread_mutex_unlock(&track_mutex);
 
     printTime();
     printf("Train %d is ON the main track going %s\n", train->number, getDirection(train->direction));
@@ -281,12 +306,30 @@ void *train_thread_routine(void *arg) {
     printTime();
     printf("Train %d is OFF the main track going %s\n", train->number, getDirection(train->direction));
     pthread_cond_signal(&on_track_cv);  // Signal that the track is available
+
+    // If there are waiting trains in the priority queue, dequeue and let the next one proceed
+    PriorityQueue* currentQueue = train->direction == 'E' ? eastBoundStation : westBoundStation;
+    if (!isEmpty(currentQueue)) {
+        Train* nextTrain = dequeue(currentQueue);
+        pthread_mutex_unlock(&track_mutex);
+        pthread_cond_signal(&on_track_cv);  // Signal that the track is available for the next train
+        pthread_cond_signal(&cross_cv);  // Signal that the train has crossed
+        pthread_mutex_unlock(&track_mutex);
+
+        pthread_exit(0);
+    } else {
+        // Log a message if the priority queue is empty (for debugging purposes)
+        printf("Priority Queue is empty.\n");
+    }
+
     pthread_cond_signal(&cross_cv);  // Signal that the train has crossed
     pthread_mutex_unlock(&track_mutex);
 
     pthread_exit(0);
-
 }
+
+
+
 
 
 int main(int argc, char *argv[]) {
@@ -302,12 +345,17 @@ int main(int argc, char *argv[]) {
         fclose(file);
     } else {
         printf("Usage: %s <filename>\n", argv[0]);
+        return -1;
     }
 
     pthread_mutex_init(&station_mutex, NULL);
     pthread_mutex_init(&track_mutex, NULL);
     pthread_cond_init(&ready_cv, NULL);
     pthread_cond_init(&on_track_cv, NULL);
+
+    // Initialize priority queues
+    eastBoundStation = createPriorityQueue();
+    westBoundStation = createPriorityQueue();
 
     pthread_t train_threads[numTrains];
     pthread_cond_t train_conditions[numTrains];
@@ -325,6 +373,10 @@ int main(int argc, char *argv[]) {
             perror("Failed to join thread");
         }
     }
+
+    // Destroy priority queues
+    destroyQueue(eastBoundStation);
+    destroyQueue(westBoundStation);
 
     pthread_mutex_destroy(&station_mutex);
     pthread_mutex_destroy(&track_mutex);

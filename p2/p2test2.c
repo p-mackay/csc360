@@ -38,10 +38,6 @@ typedef struct node {
     struct node* next;  
   
 } Node;  
-
-typedef struct {
-    Node* front;
-} PriorityQueue;
   
 // Function to Create A New Node  
 Node* newNode(Train* data){
@@ -52,12 +48,6 @@ Node* newNode(Train* data){
   
     return temp;  
 }  
-
-PriorityQueue* createPriorityQueue() {
-    PriorityQueue* queue = (PriorityQueue*)malloc(sizeof(PriorityQueue));
-    queue->front = NULL;
-    return queue;
-}
   
 // Return the value at head  
 Train* peek(Node** head)  
@@ -175,38 +165,6 @@ void createTrains(Train *trains, char *f, pthread_cond_t *train_conditions) {
     fclose(fp);
 }
 
-/*
-int nextTrain(int previous) {
-    if (!isEmpty(&stationEastHead) && !isEmpty(&stationWestHead)) {
-        
-        // Below 2 conditionals ensure trains in 1 direction do not exceed 3 in a row
-        if (numEast == 3) {
-            numEast = 0;
-            return WEST;
-        }
-
-        if (numWest == 3) {
-            numWest = 0;
-            return EAST;
-        }
-        
-        if (peekPriority(&stationEastHead) > peekPriority(&stationWestHead)) { 
-            return EAST;
-        } else if (peekPriority(&stationEastHead) < peekPriority(&stationWestHead)) {
-            return WEST;
-        } else {
-            if (previous == 1 || previous == -1) return EAST;
-            else return WEST;
-        }
-        
-    } else if (!isEmpty(&stationEastHead) && isEmpty(&stationWestHead)) {
-        return EAST;
-    } else if (isEmpty(&stationEastHead) && !isEmpty(&stationWestHead)) {
-        return WEST;
-    }
-    return -10;
-}
-*/
 
 char* getDirection(char dir){
     /*given a direction like e or E EAST 0
@@ -253,18 +211,21 @@ void *train_thread_routine(void *arg) {
     printf("Train %d is ready to go %s.\n", train->number, getDirection(train->direction));
 
     pthread_mutex_lock(&station_mutex);
-    if (train->direction == 'E' || train->direction == 'e') {
-        push(&eastBoundStation, train);
-    } else {
-        push(&westBoundStation, train);
+
+    // Check if there are higher priority trains on the track
+    pthread_mutex_lock(&track_mutex);
+    while (on_track && peekPriority(train->direction == 'W' ? &westBoundStation : &eastBoundStation) > train->priority) {
+        pthread_cond_wait(&on_track_cv, NULL);
     }
+    pthread_mutex_unlock(&track_mutex);
+
+    push(train->direction == 'W' ? &westBoundStation : &eastBoundStation, train);
     pthread_mutex_unlock(&station_mutex);
     pthread_cond_broadcast(&ready_cv);
 
     // Wait for the track to be available
     pthread_mutex_lock(&track_mutex);
     while (on_track) {
-
         pthread_cond_wait(&on_track_cv, &track_mutex);
     }
 
@@ -285,8 +246,8 @@ void *train_thread_routine(void *arg) {
     pthread_mutex_unlock(&track_mutex);
 
     pthread_exit(0);
-
 }
+
 
 
 int main(int argc, char *argv[]) {
