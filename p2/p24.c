@@ -262,9 +262,8 @@ void *train_thread_routine(void *arg) {
         push(&westBound, train);
     }
     pthread_mutex_unlock(&station_mutex);
-    pthread_cond_broadcast(&ready_cv);
 
-    // Wait for the track to be available
+    pthread_cond_signal(&ready_cv);
     pthread_mutex_lock(&track_mutex);
     while (on_track) {
 
@@ -283,8 +282,9 @@ void *train_thread_routine(void *arg) {
     on_track = 0;  // Mark the track as unoccupied
     printTime();
     printf("Train %2d is OFF the main track after going %s\n", train->number, getDirection(train->direction));
-    pthread_cond_signal(&off_track_cv);  // Signal that the track is available
     pthread_mutex_unlock(&track_mutex);
+    pthread_cond_signal(&off_track_cv);  // Signal that the track is available
+    pthread_cond_destroy(train->train_cv);
 
     pthread_exit(0);
 
@@ -330,6 +330,10 @@ int main(int argc, char *argv[]) {
     //dispatch 
     for (int dispatchedTrains = 0; dispatchedTrains < numTrains; ) {
         pthread_mutex_lock(&station_mutex);
+
+        while(isEmpty(&eastBound) && isEmpty(&westBound)) {
+            pthread_cond_wait(&ready_cv, &station_mutex);
+        }
 
         Train *nextTrain = NULL;
 
@@ -383,10 +387,10 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            pthread_mutex_unlock(&station_mutex);
 
             if(nextTrain){
                 pthread_cond_signal(nextTrain->train_cv); // Signal the highest priority train
+                pthread_mutex_unlock(&station_mutex);
                 pthread_cond_wait(&off_track_cv, &track_mutex); // wait until the chosen train has crossed
                 dispatchedTrains++;
             }
