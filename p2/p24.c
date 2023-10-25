@@ -17,7 +17,7 @@ double accum;
 
 
 pthread_mutex_t station_mutex, track_mutex;
-pthread_cond_t ready_cv, cross_cv, off_track_cv;
+pthread_cond_t ready_cv, off_track_cv;
 
 typedef struct {
     int number;
@@ -104,8 +104,8 @@ void push(Node** head, Train* data) {
 
 //==================================
 //Global Variables 
-Node* westBoundStation;
-Node* eastBoundStation;
+Node* westBound;
+Node* eastBound;
 int numTrains = 0;
 int builtTrains = 0;
 int dispatching = 0;
@@ -234,110 +234,51 @@ void startTimer(){
         exit(EXIT_FAILURE);
     }
 }
-/*
-int isHighestPriorityTrain(Train *train) {
-    Train *temp;
-    int is_highest = 1; // Assume the train has the highest priority by default
-
-    // Check against east-bound trains
-    temp = eastBoundStation.top;
-    while (temp) {
-        if (temp->priority > train->priority) {
-            is_highest = 0;
-            break;
-        }
-        temp = temp->next;
-    }
-
-    if (is_highest) { // If still highest, check against west-bound trains
-        temp = westBoundStation.top;
-        while (temp) {
-            if (temp->priority > train->priority) {
-                is_highest = 0;
-                break;
-            }
-            temp = temp->next;
-        }
-    }
-
-    return is_highest;
-}
-*/
-void *dispatcher_thread_routine(void *arg) {
-    /*
-    while (numTrains) {
-
-        // If track is occupied, just wait
-
-        Train *nextTrain = NULL;
-        if (!isEmpty(&eastBoundStation) && !isEmpty(&westBoundStation)) {
-            Train *eastTrain = peek(&eastBoundStation);
-            Train *westTrain = peek(&westBoundStation);
-            nextTrain = (eastTrain->priority > westTrain->priority) ? eastTrain : westTrain;
-        } else if (!isEmpty(&eastBoundStation)) {
-            nextTrain = peek(&eastBoundStation);
-        } else if (!isEmpty(&westBoundStation)) {
-            nextTrain = peek(&westBoundStation);
-        }
-
-        if (nextTrain) {
-            on_track = 1; // Set track as occupied here, before signaling the train.
-            pthread_cond_broadcast(&off_track_cv);
-        }
-
-    }
-    pthread_exit(0);
-    */
-}
 
 void *train_thread_routine(void *arg) {
     Train *train = (Train *)arg;
     unsigned int loadTime = (train->loadingTime) * 100000;
-
-    // Wait until all trains are built before proceeding
     while (builtTrains < numTrains) {}
 
     usleep(loadTime);
     printTime();
     printf("Train %d is ready to go %s.\n", train->number, getDirection(train->direction));
 
-    // Push train onto the correct station queue
     pthread_mutex_lock(&station_mutex);
     if (train->direction == 'E' || train->direction == 'e') {
-        push(&eastBoundStation, train);
+        push(&eastBound, train);
+        printf("%d -> priority: %d  Station priority %d\n",train->number, train->priority, peekPriority(&eastBound));
     } else {
-        push(&westBoundStation, train);
+        push(&westBound, train);
+        printf("%d -> priority: %d  Station priority %d\n",train->number, train->priority, peekPriority(&westBound));
     }
     pthread_mutex_unlock(&station_mutex);
+   // pthread_cond_broadcast(&ready_cv);
 
-    // Signal the dispatcher that a new train is ready
-    pthread_cond_broadcast(&ready_cv);
-
-    // Wait for the dispatcher to signal this train to proceed onto the track
+    // Wait for the track to be available
     pthread_mutex_lock(&track_mutex);
-    while (on_track ) {
-        pthread_cond_wait(&off_track_cv, &track_mutex);
+    while (on_track) {
+
+        pthread_cond_wait(train->train_cv, &track_mutex);
     }
-    on_track = 1;
+
+    on_track = 1;  // Mark the track as occupied
     pthread_mutex_unlock(&track_mutex);
 
-    // Proceed onto the track
     printTime();
     printf("Train %d is ON the main track going %s\n", train->number, getDirection(train->direction));
     unsigned int crossTime = (train->crossingTime) * 100000;
     usleep(crossTime);
 
-    // Mark the track as unoccupied after crossing
     pthread_mutex_lock(&track_mutex);
-    on_track = 0;
+    on_track = 0;  // Mark the track as unoccupied
     printTime();
     printf("Train %d is OFF the main track going %s\n", train->number, getDirection(train->direction));
-    pthread_cond_signal(&off_track_cv);  // Signal the dispatcher that the track is available
+    pthread_cond_signal(&off_track_cv);  // Signal that the track is available
     pthread_mutex_unlock(&track_mutex);
 
-    // Clean up the train's condition variable
-    pthread_cond_destroy(&off_track_cv);
     pthread_exit(0);
+
 }
 
 
@@ -361,7 +302,6 @@ int main(int argc, char *argv[]) {
     pthread_cond_init(&ready_cv, NULL);
     pthread_cond_init(&off_track_cv, NULL);
 
-    pthread_t dispatcher;
     pthread_t train_threads[numTrains];
     pthread_cond_t train_conditions[numTrains];
 
@@ -373,20 +313,52 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < numTrains; i++) {
         pthread_create(&train_threads[i], NULL, train_thread_routine, (void *) &trains[i]);
     }
-    pthread_create(&dispatcher, NULL, dispatcher_thread_routine, NULL);
+
+
+
+
+    // After starting all the train threads:
+for (int dispatchedTrains = 0; dispatchedTrains < numTrains; ) {
+    pthread_mutex_lock(&station_mutex);
+    
+    Train *nextTrain = NULL;
+    
+    if (!isEmpty(&eastBound) || !isEmpty(&westBound)) {
+        if (!isEmpty(&eastBound) && 
+           (isEmpty(&westBound) || 
+           (peekPriority(&eastBound) > peekPriority(&westBound)))) {
+            nextTrain = peek(&eastBound);
+            pop(&eastBound);
+        } else {
+            nextTrain = peek(&westBound);
+            pop(&westBound);
+        }
+        
+        pthread_mutex_unlock(&station_mutex);
+        pthread_cond_signal(nextTrain->train_cv); // Signal the highest priority train
+        pthread_cond_wait(&off_track_cv, &track_mutex); // wait until the chosen train has crossed
+        dispatchedTrains++;
+    } else {
+        pthread_mutex_unlock(&station_mutex);
+        usleep(1000); // Small sleep before checking again.
+    }
+}
+
+
+
+
+
+
     for (int i = 0; i < numTrains; i++) {
         if (pthread_join(train_threads[i], NULL) != 0) {
             perror("Failed to join thread");
         }
     }
-        if (pthread_join(dispatcher, NULL)) {
-            perror("Failed to join thread");
-        }
-    
+
     pthread_mutex_destroy(&station_mutex);
     pthread_mutex_destroy(&track_mutex);
     pthread_cond_destroy(&ready_cv);
-    pthread_cond_destroy(&cross_cv);
+    pthread_cond_destroy(&off_track_cv);
 
     return 0;
 }
