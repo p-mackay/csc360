@@ -77,30 +77,38 @@ void pop(Node** head)
 }  
   
 // Function to push according to priority  
+
 void push(Node** head, Train* data) {
     // Create new Node
     Node* temp = newNode(data);
 
-    // Special Case: The head of the list has lesser
-    // priority than the new node. So insert the new
-    // node before the head node and change the head node.
+    // Special Case: The head of the list has lesser priority than the new node.
     if (*head == NULL || (*head)->priority < temp->priority) {
         temp->next = *head;
         *head = temp;
     } else {
-        // Traverse the list and find a
-        // position to insert the new node.
+        // Traverse the list and find a position to insert the new node.
         Node* start = *head;
-        while (start->next != NULL && start->next->priority >= temp->priority) {
+        Node* prev = NULL;
+        while (start != NULL && (start->priority > temp->priority || 
+            (start->priority == temp->priority && 
+             (start->data->loadingTime < temp->data->loadingTime || 
+              (start->data->loadingTime == temp->data->loadingTime && start->data->number < temp->data->number))))) {
+            prev = start;
             start = start->next;
         }
-
-        // Either at the ends of the list
-        // or at the required position.
-        temp->next = start->next;
-        start->next = temp;
+        
+        // Inserting the new node at the found position
+        if (prev == NULL) {
+            temp->next = *head;
+            *head = temp;
+        } else {
+            temp->next = prev->next;
+            prev->next = temp;
+        }
     }
 }
+
 
 //==================================
 //Global Variables 
@@ -110,6 +118,8 @@ int numTrains = 0;
 int builtTrains = 0;
 int dispatching = 0;
 int on_track = 0;
+int consecutive_trains = 0;
+int last_direction = WEST;
 //==================================
 
   
@@ -241,19 +251,18 @@ void *train_thread_routine(void *arg) {
     while (builtTrains < numTrains) {}
 
     usleep(loadTime);
+    //train->load_complete_time = accum;
     printTime();
     printf("Train %d is ready to go %s.\n", train->number, getDirection(train->direction));
 
     pthread_mutex_lock(&station_mutex);
     if (train->direction == 'E' || train->direction == 'e') {
         push(&eastBound, train);
-        printf("%d -> priority: %d  Station priority %d\n",train->number, train->priority, peekPriority(&eastBound));
     } else {
         push(&westBound, train);
-        printf("%d -> priority: %d  Station priority %d\n",train->number, train->priority, peekPriority(&westBound));
     }
     pthread_mutex_unlock(&station_mutex);
-   // pthread_cond_broadcast(&ready_cv);
+    pthread_cond_broadcast(&ready_cv);
 
     // Wait for the track to be available
     pthread_mutex_lock(&track_mutex);
@@ -317,33 +326,75 @@ int main(int argc, char *argv[]) {
 
 
 
-    // After starting all the train threads:
-for (int dispatchedTrains = 0; dispatchedTrains < numTrains; ) {
-    pthread_mutex_lock(&station_mutex);
-    
-    Train *nextTrain = NULL;
-    
-    if (!isEmpty(&eastBound) || !isEmpty(&westBound)) {
-        if (!isEmpty(&eastBound) && 
-           (isEmpty(&westBound) || 
-           (peekPriority(&eastBound) > peekPriority(&westBound)))) {
-            nextTrain = peek(&eastBound);
-            pop(&eastBound);
-        } else {
-            nextTrain = peek(&westBound);
-            pop(&westBound);
-        }
-        
-        pthread_mutex_unlock(&station_mutex);
-        pthread_cond_signal(nextTrain->train_cv); // Signal the highest priority train
-        pthread_cond_wait(&off_track_cv, &track_mutex); // wait until the chosen train has crossed
-        dispatchedTrains++;
-    } else {
-        pthread_mutex_unlock(&station_mutex);
-        usleep(1000); // Small sleep before checking again.
-    }
-}
 
+    //dispatch 
+    for (int dispatchedTrains = 0; dispatchedTrains < numTrains; ) {
+        pthread_mutex_lock(&station_mutex);
+
+        Train *nextTrain = NULL;
+
+        if (!isEmpty(&eastBound) || !isEmpty(&westBound)) {
+            if (consecutive_trains >= 3) {
+                // Ensure a train from the opposite direction is dispatched if present
+                if (last_direction == EAST && !isEmpty(&westBound)) {
+                    nextTrain = peek(&westBound);
+                    pop(&westBound);
+                    consecutive_trains = 1; // Reset the counter as this train breaks the sequence
+                    last_direction = WEST;
+                } else if (last_direction == WEST && !isEmpty(&eastBound)) {
+                    nextTrain = peek(&eastBound);
+                    pop(&eastBound);
+                    consecutive_trains = 1; // Reset the counter as this train breaks the sequence
+                    last_direction = EAST;
+                } else { 
+                    // Fallback mechanism to handle case when opposite queue is empty 
+                    // and there are more than 3 trains in the original direction queue
+                    if (last_direction == EAST && !isEmpty(&eastBound)) {
+                        nextTrain = peek(&eastBound);
+                        pop(&eastBound);
+                        consecutive_trains++; // Here, we increase instead of resetting
+                    } else if (last_direction == WEST && !isEmpty(&westBound)) {
+                        nextTrain = peek(&westBound);
+                        pop(&westBound);
+                        consecutive_trains++; // Again, increase instead of resetting
+                    }
+                }
+            } else {
+                if (!isEmpty(&eastBound) && 
+                    (isEmpty(&westBound) || 
+                    (peekPriority(&eastBound) > peekPriority(&westBound)))) {
+                    nextTrain = peek(&eastBound);
+                    pop(&eastBound);
+                    if (last_direction == EAST) {
+                        consecutive_trains++;
+                    } else {
+                        last_direction = EAST;
+                        consecutive_trains = 1;
+                    }
+                } else {
+                    nextTrain = peek(&westBound);
+                    pop(&westBound);
+                    if (last_direction == WEST) {
+                        consecutive_trains++;
+                    } else {
+                        last_direction = WEST;
+                        consecutive_trains = 1;
+                    }
+                }
+            }
+
+            pthread_mutex_unlock(&station_mutex);
+
+            if(nextTrain){
+                pthread_cond_signal(nextTrain->train_cv); // Signal the highest priority train
+                pthread_cond_wait(&off_track_cv, &track_mutex); // wait until the chosen train has crossed
+                dispatchedTrains++;
+            }
+        } else {
+            pthread_mutex_unlock(&station_mutex);
+            usleep(1000); // Small sleep before checking again.
+        }
+    }
 
 
 
