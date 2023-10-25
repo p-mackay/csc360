@@ -253,7 +253,7 @@ void *train_thread_routine(void *arg) {
     usleep(loadTime);
     //train->load_complete_time = accum;
     printTime();
-    printf("Train %d is ready to go %s.\n", train->number, getDirection(train->direction));
+    printf("Train %2d is ready to go %s\n", train->number, getDirection(train->direction));
 
     pthread_mutex_lock(&station_mutex);
     if (train->direction == 'E' || train->direction == 'e') {
@@ -275,14 +275,14 @@ void *train_thread_routine(void *arg) {
     pthread_mutex_unlock(&track_mutex);
 
     printTime();
-    printf("Train %d is ON the main track going %s\n", train->number, getDirection(train->direction));
+    printf("Train %2d is ON the main track going %s\n", train->number, getDirection(train->direction));
     unsigned int crossTime = (train->crossingTime) * 100000;
     usleep(crossTime);
 
     pthread_mutex_lock(&track_mutex);
     on_track = 0;  // Mark the track as unoccupied
     printTime();
-    printf("Train %d is OFF the main track going %s\n", train->number, getDirection(train->direction));
+    printf("Train %2d is OFF the main track after going %s\n", train->number, getDirection(train->direction));
     pthread_cond_signal(&off_track_cv);  // Signal that the track is available
     pthread_mutex_unlock(&track_mutex);
 
