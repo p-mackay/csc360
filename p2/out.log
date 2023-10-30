@@ -1,15 +1,187 @@
-00:00:00.1 Train  1 is ready to go West
-00:00:00.1 Train  1 is ON the main track going West
-00:00:00.2 Train  2 is ready to go West
-00:00:00.3 Train  3 is ready to go West
-00:00:00.4 Train  4 is ready to go West
-00:00:00.5 Train  0 is ready to go East
-00:00:00.7 Train  1 is OFF the main track after going West
-00:00:00.7 Train  2 is ON the main track going West
-00:00:00.8 Train  2 is OFF the main track after going West
-00:00:00.8 Train  3 is ON the main track going West
-00:00:00.9 Train  3 is OFF the main track after going West
-00:00:00.9 Train  0 is ON the main track going East
-00:00:01.0 Train  0 is OFF the main track after going East
-00:00:01.0 Train  4 is ON the main track going West
-00:00:01.1 Train  4 is OFF the main track after going West
+00:00:00.1 Train  0 is ready to go East
+00:00:00.1 Train  0 is ON the main track going East
+00:00:00.1 Train  4 is ready to go East
+00:00:00.1 Train  6 is ready to go West
+00:00:00.1 Train  7 is ready to go West
+consecutive_trains: 0 last dir: 1
+00:00:00.1 Train 11 is ready to go West
+00:00:00.1 Train 20 is ready to go West
+00:00:00.1 Train 23 is ready to go West
+00:00:00.1 Train 25 is ready to go West
+00:00:00.1 Train 41 is ready to go West
+00:00:00.1 Train 45 is ready to go West
+00:00:00.1 Train 46 is ready to go West
+00:00:00.1 Train 47 is ready to go West
+00:00:00.1 Train 61 is ready to go West
+00:00:00.2 Train 31 is ready to go West
+00:00:00.2 Train 36 is ready to go West
+00:00:00.2 Train 52 is ready to go East
+00:00:00.2 Train 53 is ready to go West
+00:00:00.2 Train 63 is ready to go East
+00:00:00.2 Train 68 is ready to go East
+00:00:00.2 Train 74 is ready to go West
+00:00:00.2 Train 80 is ready to go East
+00:00:00.2 Train 98 is ready to go East
+00:00:00.3 Train  1 is ready to go West
+00:00:00.3 Train  0 is OFF the main track after going East
+00:00:00.3 Train 10 is ready to go West
+00:00:00.3 Train 10 is ON the main track going West
+00:00:00.3 Train 17 is ready to go East
+00:00:00.3 Train 27 is ready to go West
+consecutive_trains: 1 last dir: 1
+00:00:00.3 Train 48 is ready to go East
+00:00:00.3 Train 51 is ready to go West
+00:00:00.3 Train 69 is ready to go East
+00:00:00.3 Train 76 is ready to go East
+00:00:00.3 Train 83 is ready to go West
+00:00:00.4 Train  3 is ready to go East
+00:00:00.4 Train 15 is ready to go West
+00:00:00.4 Train 24 is ready to go West
+00:00:00.4 Train 30 is ready to go West
+00:00:00.4 Train 32 is ready to go West
+00:00:00.4 Train 37 is ready to go West
+00:00:00.4 Train 57 is ready to go West
+00:00:00.4 Train 75 is ready to go East
+00:00:00.4 Train 78 is ready to go East
+00:00:00.4 Train 92 is ready to go West
+00:00:00.4 Train 97 is ready to go West
+00:00:00.5 Train  8 is ready to go East
+00:00:00.5 Train 33 is ready to go West
+00:00:00.5 Train 42 is ready to go East
+00:00:00.5 Train 56 is ready to go West
+00:00:00.5 Train 70 is ready to go East
+00:00:00.5 Train 77 is ready to go West
+00:00:00.5 Train 79 is ready to go West
+00:00:00.5 Train 95 is ready to go East
+00:00:00.6 Train  2 is ready to go East
+00:00:00.6 Train 13 is ready to go West
+00:00:00.6 Train 39 is ready to go East
+00:00:00.6 Train 40 is ready to go West
+00:00:00.6 Train 43 is ready to go West
+00:00:00.6 Train 64 is ready to go East
+00:00:00.6 Train 66 is ready to go West
+00:00:00.6 Train 67 is ready to go West
+00:00:00.6 Train 71 is ready to go East
+00:00:00.6 Train 73 is ready to go East
+00:00:00.6 Train 88 is ready to go East
+00:00:00.6 Train 93 is ready to go East
+00:00:00.7 Train  9 is ready to go West
+00:00:00.7 Train 12 is ready to go West
+00:00:00.7 Train 16 is ready to go East
+00:00:00.7 Train 22 is ready to go West
+00:00:00.7 Train 34 is ready to go East
+00:00:00.7 Train 50 is ready to go East
+00:00:00.7 Train 60 is ready to go East
+00:00:00.7 Train 85 is ready to go West
+00:00:00.7 Train 86 is ready to go West
+00:00:00.7 Train 94 is ready to go West
+00:00:00.7 Train 99 is ready to go West
+00:00:00.8 Train 14 is ready to go West
+00:00:00.8 Train 19 is ready to go East
+00:00:00.8 Train 29 is ready to go East
+00:00:00.8 Train 38 is ready to go East
+00:00:00.8 Train 49 is ready to go West
+00:00:00.8 Train 54 is ready to go East
+00:00:00.8 Train 55 is ready to go West
+00:00:00.8 Train 59 is ready to go West
+00:00:00.8 Train 65 is ready to go West
+00:00:00.8 Train 87 is ready to go East
+00:00:00.9 Train 18 is ready to go West
+00:00:00.9 Train 28 is ready to go West
+00:00:00.9 Train 35 is ready to go West
+00:00:00.9 Train 58 is ready to go East
+00:00:00.9 Train 72 is ready to go East
+00:00:00.9 Train 81 is ready to go West
+00:00:00.9 Train 84 is ready to go East
+00:00:00.9 Train 89 is ready to go West
+00:00:00.9 Train 90 is ready to go East
+00:00:00.9 Train 91 is ready to go East
+00:00:00.9 Train 96 is ready to go East
+00:00:01.0 Train  5 is ready to go East
+00:00:01.0 Train 10 is OFF the main track after going West
+00:00:01.0 Train 21 is ready to go East
+00:00:01.0 Train 21 is ON the main track going East
+00:00:01.0 Train 26 is ready to go East
+consecutive_trains: 2 last dir: 1
+00:00:01.0 Train 44 is ready to go West
+00:00:01.0 Train 62 is ready to go East
+00:00:01.0 Train 82 is ready to go West
+00:00:01.5 Train 21 is OFF the main track after going East
+consecutive_trains: 3 last dir: 1
+00:00:01.5 Train  4 is ON the main track going East
+00:00:01.7 Train  4 is OFF the main track after going East
+consecutive_trains: 0 last dir: 0
+00:00:01.7 Train 31 is ON the main track going West
+00:00:01.8 Train 31 is OFF the main track after going West
+consecutive_trains: 1 last dir: 1
+00:00:01.8 Train 53 is ON the main track going West
+00:00:02.6 Train 53 is OFF the main track after going West
+consecutive_trains: 2 last dir: 1
+00:00:02.6 Train 74 is ON the main track going West
+00:00:03.1 Train 74 is OFF the main track after going West
+consecutive_trains: 3 last dir: 1
+00:00:03.1 Train 63 is ON the main track going East
+00:00:04.0 Train 63 is OFF the main track after going East
+consecutive_trains: 0 last dir: 0
+00:00:04.0 Train 24 is ON the main track going West
+00:00:04.1 Train 24 is OFF the main track after going West
+consecutive_trains: 1 last dir: 1
+00:00:04.1 Train 32 is ON the main track going West
+00:00:05.0 Train 32 is OFF the main track after going West
+consecutive_trains: 2 last dir: 1
+00:00:05.0 Train 37 is ON the main track going West
+00:00:05.3 Train 37 is OFF the main track after going West
+consecutive_trains: 3 last dir: 1
+00:00:05.3 Train 17 is ON the main track going East
+00:00:06.1 Train 17 is OFF the main track after going East
+consecutive_trains: 0 last dir: 0
+00:00:06.1 Train 57 is ON the main track going West
+00:00:06.7 Train 57 is OFF the main track after going West
+consecutive_trains: 1 last dir: 1
+00:00:06.7 Train 97 is ON the main track going West
+00:00:07.0 Train 97 is OFF the main track after going West
+consecutive_trains: 2 last dir: 1
+00:00:07.0 Train 33 is ON the main track going West
+00:00:07.1 Train 33 is OFF the main track after going West
+consecutive_trains: 3 last dir: 1
+00:00:07.1 Train 48 is ON the main track going East
+00:00:07.9 Train 48 is OFF the main track after going East
+consecutive_trains: 0 last dir: 0
+00:00:07.9 Train 13 is ON the main track going West
+00:00:08.9 Train 13 is OFF the main track after going West
+consecutive_trains: 1 last dir: 1
+00:00:08.9 Train 43 is ON the main track going West
+00:00:09.7 Train 43 is OFF the main track after going West
+consecutive_trains: 2 last dir: 1
+00:00:09.7 Train 66 is ON the main track going West
+00:00:09.8 Train 66 is OFF the main track after going West
+consecutive_trains: 3 last dir: 1
+00:00:09.8 Train 69 is ON the main track going East
+00:00:10.3 Train 69 is OFF the main track after going East
+consecutive_trains: 0 last dir: 0
+00:00:10.3 Train 67 is ON the main track going West
+00:00:10.4 Train 67 is OFF the main track after going West
+consecutive_trains: 1 last dir: 1
+00:00:10.4 Train 12 is ON the main track going West
+00:00:10.5 Train 12 is OFF the main track after going West
+consecutive_trains: 2 last dir: 1
+00:00:10.5 Train 85 is ON the main track going West
+00:00:11.4 Train 85 is OFF the main track after going West
+consecutive_trains: 3 last dir: 1
+00:00:11.4 Train  3 is ON the main track going East
+00:00:11.7 Train  3 is OFF the main track after going East
+consecutive_trains: 0 last dir: 0
+00:00:11.7 Train 86 is ON the main track going West
+00:00:12.7 Train 86 is OFF the main track after going West
+consecutive_trains: 1 last dir: 1
+00:00:12.7 Train 94 is ON the main track going West
+00:00:13.0 Train 94 is OFF the main track after going West
+consecutive_trains: 2 last dir: 1
+00:00:13.0 Train 49 is ON the main track going West
+00:00:13.3 Train 49 is OFF the main track after going West
+consecutive_trains: 3 last dir: 1
+00:00:13.3 Train 78 is ON the main track going East
+00:00:14.0 Train 78 is OFF the main track after going East
+consecutive_trains: 0 last dir: 0
+00:00:14.0 Train 55 is ON the main track going West
+00:00:14.9 Train 55 is OFF the main track afte
