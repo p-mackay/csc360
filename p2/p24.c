@@ -29,7 +29,7 @@ typedef struct {
 } Train;
 
 
-/* Skeleton code from https://www.geeksforgeeks.org/priority-queue-using-linked-list/*/
+/* Skeleton code from https: www.geeksforgeeks.org/priority-queue-using-linked-list*/
 /* Queue code VVV*/
 /*----------------------------------------------------------------*/
 /* Node  */
@@ -37,21 +37,21 @@ typedef struct node {
     Train* data;  
     int priority;  
     struct node* next;  
-  
+
 } Node;  
 
-  
+
 /* Function to Create A New Node  */
 Node* newNode(Train* data){
     Node* temp = (Node*)malloc(sizeof(Node));  
     temp->data = data;  
     temp->priority = data->priority;  
     temp->next = NULL;  
-  
+
     return temp;  
 }  
 
-  
+
 /* Return the value at head  */
 Train* peek(Node** head){
     return (*head)->data;  
@@ -62,7 +62,7 @@ int peekPriority(Node** head){
     return (*head)->priority;  
 }  
 
-  
+
 /* Removes the element with the  */
 /* highest priority from the list  */
 void pop(Node** head)  
@@ -75,7 +75,7 @@ void pop(Node** head)
         free(temp);  
     }
 }  
-  
+
 /* Function to push according to priority, load time, and train number.
  * Further the purpose here is to solve Rule 3, and 4a*/
 
@@ -128,7 +128,7 @@ int consecutive_trains = 0; /* Stores number of consecutive trains in one direct
 int last_direction = WEST;  /* Stores direction of last train*/
 /*==================================*/
 
-  
+
 /* Function to check if a queue is empty  */
 int isEmpty(Node** head)  
 {  
@@ -203,7 +203,7 @@ int getNumTrains(FILE *file){
 }
 
 void printTime(){
-        if (clock_gettime(CLOCK_REALTIME, &stop) == -1) {
+    if (clock_gettime(CLOCK_REALTIME, &stop) == -1) {
         perror("clock gettime");
         exit(EXIT_FAILURE);
     }
@@ -215,7 +215,7 @@ void printTime(){
 }
 
 void startTimer(){
-       if(clock_gettime(CLOCK_REALTIME, &start) == -1) {
+    if(clock_gettime(CLOCK_REALTIME, &start) == -1) {
         perror("clock gettime");
         exit(EXIT_FAILURE);
     }
@@ -237,16 +237,12 @@ void *train_thread_routine(void *arg) {
         push(&westBound, train);
     }
     pthread_mutex_unlock(&station_mutex);
-
     pthread_cond_signal(&ready_cv);
+
     pthread_mutex_lock(&track_mutex);
-    while (on_track) {
-
-        pthread_cond_wait(train->train_cv, &track_mutex);
-    }
-
-    on_track = 1;  /* Mark the track as occupied*/
+    pthread_cond_wait(train->train_cv, &track_mutex);
     pthread_mutex_unlock(&track_mutex);
+
 
     printTime();
     printf("Train %2d is ON the main track going %s\n", train->number, getDirection(train->direction));
@@ -257,10 +253,9 @@ void *train_thread_routine(void *arg) {
     on_track = 0;  /* Mark the track as unoccupied*/
     printTime();
     printf("Train %2d is OFF the main track after going %s\n", train->number, getDirection(train->direction));
-    pthread_mutex_unlock(&track_mutex);
-        usleep(1000); /* Small sleep before checking again.*/
     pthread_cond_signal(&off_track_cv);  /* Signal that the track is available*/
-    pthread_cond_destroy(train->train_cv);
+    pthread_mutex_unlock(&track_mutex);
+    usleep(1000); /* Small sleep before checking again.*/
 
     pthread_exit(0);
 }
@@ -303,116 +298,89 @@ int main(int argc, char *argv[]) {
         pthread_create(&train_threads[i], NULL, train_thread_routine, (void *) &trains[i]);
     }
 
-
-
-
-
-
     /*dispatch */
     /* The purpose of dispatch loop is to solve 4b, 4c opposite directions 
      * and starvation*/
 
     for (int dispatchedTrains = 0; dispatchedTrains < numTrains; ) {
-    pthread_mutex_lock(&station_mutex);
+        pthread_mutex_lock(&station_mutex);
 
-    while(isEmpty(&eastBound) && isEmpty(&westBound)) {
-        pthread_cond_wait(&ready_cv, &station_mutex);
-    }
+        while(isEmpty(&eastBound) && isEmpty(&westBound)) {
+            pthread_cond_wait(&ready_cv, &station_mutex);
+        }
 
-    Train *nextTrain = NULL;
+        Train *nextTrain = NULL;
 
-    if (!isEmpty(&eastBound) || !isEmpty(&westBound)) {
-        if (consecutive_trains >= 3) {
-            // Logic for when 3 consecutive trains have already been dispatched remains unchanged.
-            if (last_direction == EAST && !isEmpty(&westBound)) {
-                nextTrain = peek(&westBound);
-                pop(&westBound);
-                    printf("consecutive_trains: %d last dir: %d\n", 
-                           consecutive_trains, last_direction);
-                consecutive_trains = 1; 
-                last_direction = WEST;
-            } else if (last_direction == WEST && !isEmpty(&eastBound)) {
-                nextTrain = peek(&eastBound);
-                pop(&eastBound);
-                    printf("consecutive_trains: %d last dir: %d\n", 
-                           consecutive_trains, last_direction);
-                consecutive_trains = 1; 
-                last_direction = EAST;
-            } else { 
-                if (last_direction == EAST && !isEmpty(&eastBound)) {
-                    nextTrain = peek(&eastBound);
-                    pop(&eastBound);
-                    printf("consecutive_trains: %d last dir: %d\n", 
-                           consecutive_trains, last_direction);
-                    consecutive_trains++; 
-                } else if (last_direction == WEST && !isEmpty(&westBound)) {
+        if (!isEmpty(&eastBound) || !isEmpty(&westBound)) {
+            if (consecutive_trains >= 3) {
+                if (last_direction == EAST && !isEmpty(&westBound)) {
                     nextTrain = peek(&westBound);
                     pop(&westBound);
-                    printf("consecutive_trains: %d last dir: %d\n", 
-                           consecutive_trains, last_direction);
-                    consecutive_trains++; 
-                }
-            }
-                consecutive_trains = 0;
-        } else {
-            if (last_direction == EAST) {
-                if (!isEmpty(&westBound)) {
-                    nextTrain = peek(&westBound);
-                    pop(&westBound);
-                    printf("consecutive_trains: %d last dir: %d\n", 
-                           consecutive_trains, last_direction);
                     last_direction = WEST;
                     consecutive_trains = 1;
-                } else if (!isEmpty(&eastBound)) {
+                } else if (last_direction == WEST && !isEmpty(&eastBound)) {
                     nextTrain = peek(&eastBound);
                     pop(&eastBound);
-                    printf("consecutive_trains: %d last dir: %d\n", 
-                           consecutive_trains, last_direction);
+                    last_direction = EAST;
+                    consecutive_trains = 1;
+                } else {
+                    nextTrain = (last_direction == EAST) ? peek(&eastBound) : peek(&westBound);
+                    pop((last_direction == EAST) ? &eastBound : &westBound);
                     consecutive_trains++;
                 }
             } else {
-                if (!isEmpty(&eastBound) &&
-                    (isEmpty(&westBound) || peekPriority(&eastBound) > peekPriority(&westBound))) {
-                    nextTrain = peek(&eastBound);
-                    pop(&eastBound);
-                    printf("consecutive_trains: %d last dir: %d\n", 
-                           consecutive_trains, last_direction);
-                    last_direction = EAST;
-                    consecutive_trains = (last_direction == EAST) ? consecutive_trains + 1 : 1;
-                } else if (!isEmpty(&westBound)) {
-                    nextTrain = peek(&westBound);
-                    pop(&westBound);
-                    printf("consecutive_trains: %d last dir: %d\n", 
-                           consecutive_trains, last_direction);
-                    last_direction = WEST;
-                    consecutive_trains = (last_direction == WEST) ? consecutive_trains + 1 : 1;
+                if (last_direction == EAST) {
+                    if (!isEmpty(&westBound)) {
+                        nextTrain = peek(&westBound);
+                        pop(&westBound);
+                        last_direction = WEST;
+                        consecutive_trains = 1;
+                    } else if (!isEmpty(&eastBound)) {
+                        nextTrain = peek(&eastBound);
+                        pop(&eastBound);
+                        consecutive_trains++;
+                    }
+                } else {
+                    if (!isEmpty(&eastBound) &&
+                        (isEmpty(&westBound) || peekPriority(&eastBound) > peekPriority(&westBound))) {
+                        nextTrain = peek(&eastBound);
+                        pop(&eastBound);
+                        last_direction = EAST;
+                        consecutive_trains++;
+                    } else if (!isEmpty(&westBound)) {
+                        nextTrain = peek(&westBound);
+                        pop(&westBound);
+                        last_direction = WEST;
+                        consecutive_trains++;
+                    }
                 }
             }
-        }
 
-        if(nextTrain){
-            pthread_cond_signal(nextTrain->train_cv); // Signal the highest priority train
+            if(nextTrain){
+                pthread_cond_signal(nextTrain->train_cv); /* Signal the highest priority train*/
+                pthread_mutex_unlock(&station_mutex);
+
+                pthread_mutex_lock(&track_mutex);
+                pthread_cond_wait(&off_track_cv, &track_mutex); /* wait until the chosen train has crossed*/
+                pthread_mutex_unlock(&track_mutex);
+
+                dispatchedTrains++;
+                printf("consecutive_trains: %d last dir: %d\n", 
+                       consecutive_trains, last_direction);
+            }
+
+        }else {
             pthread_mutex_unlock(&station_mutex);
-            pthread_cond_wait(&off_track_cv, &track_mutex); // wait until the chosen train has crossed
-            dispatchedTrains++;
+            usleep(1000); /* Small sleep before checking again.*/
         }
-    } else {
-        pthread_mutex_unlock(&station_mutex);
-        usleep(1000); // Small sleep before checking again.
     }
-}
-
-
-
-
-
-
 
     for (int i = 0; i < numTrains; i++) {
         if (pthread_join(train_threads[i], NULL) != 0) {
             perror("Failed to join thread");
         }
     }
+    pthread_cond_destroy(trains->train_cv);
     free(trains);
     freeQueue(&eastBound);
     freeQueue(&westBound);
