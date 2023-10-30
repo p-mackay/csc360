@@ -29,10 +29,9 @@ typedef struct {
 } Train;
 
 
-/* Skeleton code from https://www.geeksforgeeks.org/priority-queue-using-linked-list/*/
-/* Queue code VVV*/
-/*----------------------------------------------------------------*/
-/* Node  */
+// Queue code VVV
+//----------------------------------------------------------------
+// Node  
 typedef struct node {  
     Train* data;  
     int priority;  
@@ -41,7 +40,7 @@ typedef struct node {
 } Node;  
 
   
-/* Function to Create A New Node  */
+// Function to Create A New Node  
 Node* newNode(Train* data){
     Node* temp = (Node*)malloc(sizeof(Node));  
     temp->data = data;  
@@ -52,19 +51,20 @@ Node* newNode(Train* data){
 }  
 
   
-/* Return the value at head  */
-Train* peek(Node** head){
+// Return the value at head  
+Train* peek(Node** head)  
+{  
     return (*head)->data;  
 }  
 
-/* Return the trains priority at head  */
-int peekPriority(Node** head){
+int peekPriority(Node** head)  
+{  
     return (*head)->priority;  
 }  
 
   
-/* Removes the element with the  */
-/* highest priority from the list  */
+// Removes the element with the  
+// highest priority from the list  
 void pop(Node** head)  
 {  
     if (*head == NULL){
@@ -76,28 +76,21 @@ void pop(Node** head)
     }
 }  
   
-/* Function to push according to priority, load time, and train number.
- * Further the purpose here is to solve Rule 3, and 4a*/
+// Function to push according to priority  
 
 void push(Node** head, Train* data) {
-    /* Create new Node*/
+    // Create new Node
     Node* temp = newNode(data);
 
-    /* Add at the beginning if the queue (linked list) is empty or the new node
-     * has higher priority*/
+    // Special Case: The head of the list has lesser priority than the new node.
     if (*head == NULL || (*head)->priority < temp->priority) {
         temp->next = *head;
         *head = temp;
     } else {
-        /* The new node will only take the place of head if one of the following are met: 
-         * - If its priority is higher than the current head
-         * - If the priorities are equal then check which train 
-         *   finishes loading first(loadingTime is less) 
-         * - If the priority and loadingTime is equal then the train which 
-         *   appeared in the file has priority (train number less)*/
+        // Traverse the list and find a position to insert the new node.
         Node* start = *head;
         Node* prev = NULL;
-        while (start != NULL && (start->priority >= temp->priority || 
+        while (start != NULL && (start->priority > temp->priority || 
             (start->priority == temp->priority && 
              (start->data->loadingTime < temp->data->loadingTime || 
               (start->data->loadingTime == temp->data->loadingTime && start->data->number < temp->data->number))))) {
@@ -105,7 +98,7 @@ void push(Node** head, Train* data) {
             start = start->next;
         }
         
-        /* Insert the new node at the found position*/
+        // Inserting the new node at the found position
         if (prev == NULL) {
             temp->next = *head;
             *head = temp;
@@ -117,25 +110,37 @@ void push(Node** head, Train* data) {
 }
 
 
-/*==================================*/
-/* Global Variables */
-Node* westBound;    /* Queue to store west bound trains*/
-Node* eastBound;    /* Queue to store east bound trains*/
-int numTrains = 0;  /* Stores the number of trains*/
-int trainCount = 0;
-int on_track = 0;           /* Variable to indicate that a train is on the track*/
-int consecutive_trains = 0; /* Stores number of consecutive trains in one direction*/
-int last_direction = WEST;  /* Stores direction of last train*/
-/*==================================*/
+//==================================
+//Global Variables 
+Node* westBound;
+Node* eastBound;
+int numTrains = 0;
+int builtTrains = 0;
+int dispatching = 0;
+int on_track = 0;
+int consecutive_trains = 0;
+int last_direction = WEST;
+//==================================
 
   
-/* Function to check if a queue is empty  */
+// Function to check is list is empty  
 int isEmpty(Node** head)  
 {  
     return (*head) == NULL;  
 }  
-/*----------------------------------------------------------------*/
+//----------------------------------------------------------------
 
+int getNumTrains(FILE *file){
+    int count = 0;
+    char c;
+    // Iterate through each character in the file
+    while ((c = fgetc(file)) != EOF) {
+        if (c == '\n') {
+            count++;  // Increment the count for each newline character
+        }
+    }
+    return count;
+}
 
 int getPriority(char direction){
     /*Given a direction returns either HIGH or LOW priority*/
@@ -144,38 +149,70 @@ int getPriority(char direction){
     } else if (direction == 'e' || direction == 'w') {
         return LOW;
     } else {
-        /* Handle unknown direction*/
+        // Handle unknown direction
         return LOW;
     }
 }
 
 
-void fileToTrains(Train *this_train, char *file, pthread_cond_t *train_wait_cv) {
+void createTrains(Train *trains, char *f, pthread_cond_t *train_conditions) {
 
     for (int i = 0; i < numTrains; i++) {
-        pthread_cond_init(&train_wait_cv[i], NULL);
+        pthread_cond_init(&train_conditions[i], NULL);
     }
 
-    char direction[3], loadTime[3], crossTime[3];
-    int trainID = 0;
-    FILE *fp = fopen(file, "r");
-    while (fscanf(fp, "%s %s %s", direction, loadTime, crossTime) != EOF) {
-        this_train[trainID].number = trainID;
-        this_train[trainID].priority = getPriority(direction[0]);
-        this_train[trainID].direction = direction[0];
-        this_train[trainID].loadingTime = atoi(loadTime);
-        this_train[trainID].crossingTime = atoi(crossTime);
-        this_train[trainID].train_cv = &train_wait_cv[trainID];
-        trainID++;
-        trainCount++;
+    char direction[3], loading_time[3], crossing_time[3];
+    int train_number = 0;
+    FILE *fp = fopen(f, "r");
+    while (fscanf(fp, "%s %s %s", direction, loading_time, crossing_time) != EOF) {
+        trains[train_number].number = train_number;
+        trains[train_number].direction = direction[0];
+        trains[train_number].priority = getPriority(direction[0]);
+        trains[train_number].loadingTime = atoi(loading_time);
+        trains[train_number].crossingTime = atoi(crossing_time);
+        trains[train_number].train_cv = &train_conditions[train_number];
+        train_number++;
+        builtTrains++;
     }
     fclose(fp);
 }
 
+/*
+int nextTrain(int previous) {
+    if (!isEmpty(&stationEastHead) && !isEmpty(&stationWestHead)) {
+        
+        // Below 2 conditionals ensure trains in 1 direction do not exceed 3 in a row
+        if (numEast == 3) {
+            numEast = 0;
+            return WEST;
+        }
+
+        if (numWest == 3) {
+            numWest = 0;
+            return EAST;
+        }
+        
+        if (peekPriority(&stationEastHead) > peekPriority(&stationWestHead)) { 
+            return EAST;
+        } else if (peekPriority(&stationEastHead) < peekPriority(&stationWestHead)) {
+            return WEST;
+        } else {
+            if (previous == 1 || previous == -1) return EAST;
+            else return WEST;
+        }
+        
+    } else if (!isEmpty(&stationEastHead) && isEmpty(&stationWestHead)) {
+        return EAST;
+    } else if (isEmpty(&stationEastHead) && !isEmpty(&stationWestHead)) {
+        return WEST;
+    }
+    return -10;
+}
+*/
 
 char* getDirection(char dir){
-    /*given a direction e,E or w,W 
-     * returns the string East or West*/
+    /*given a direction like e or E EAST 0
+     * returns EAST or WEST         WEST 1*/
     switch (dir) {
         case 'e':
         case 'E':
@@ -187,19 +224,6 @@ char* getDirection(char dir){
             return "UNKNOWN";
     }
 
-}
-
-/* Function to determine the number of trains given a file*/
-int getNumTrains(FILE *file){
-    int count = 0;
-    char c;
-    /* Iterate through each character in the file*/
-    while ((c = fgetc(file)) != EOF) {
-        if (c == '\n') {
-            count++;  /* Increment the count for each newline character*/
-        }
-    }
-    return count;
 }
 
 void printTime(){
@@ -224,9 +248,10 @@ void startTimer(){
 void *train_thread_routine(void *arg) {
     Train *train = (Train *)arg;
     unsigned int loadTime = (train->loadingTime) * 100000;
-    while (trainCount < numTrains) {}
+    while (builtTrains < numTrains) {}
 
     usleep(loadTime);
+    //train->load_complete_time = accum;
     printTime();
     printf("Train %2d is ready to go %s\n", train->number, getDirection(train->direction));
 
@@ -245,7 +270,7 @@ void *train_thread_routine(void *arg) {
         pthread_cond_wait(train->train_cv, &track_mutex);
     }
 
-    on_track = 1;  /* Mark the track as occupied*/
+    on_track = 1;  // Mark the track as occupied
     pthread_mutex_unlock(&track_mutex);
 
     printTime();
@@ -254,31 +279,26 @@ void *train_thread_routine(void *arg) {
     usleep(crossTime);
 
     pthread_mutex_lock(&track_mutex);
-    on_track = 0;  /* Mark the track as unoccupied*/
+    on_track = 0;  // Mark the track as unoccupied
     printTime();
     printf("Train %2d is OFF the main track after going %s\n", train->number, getDirection(train->direction));
     pthread_mutex_unlock(&track_mutex);
-        usleep(1000); /* Small sleep before checking again.*/
-    pthread_cond_signal(&off_track_cv);  /* Signal that the track is available*/
+    pthread_cond_signal(&off_track_cv);  // Signal that the track is available
     pthread_cond_destroy(train->train_cv);
 
     pthread_exit(0);
+
 }
 
-void freeQueue(Node** head) {
-    while (!isEmpty(head)) {
-        pop(head);
-    }
-}
 
 int main(int argc, char *argv[]) {
     FILE *file;
-    /* Check if a filename is provided as a command-line argument*/
+    // Check if a filename is provided as a command-line argument
     if (argc > 1) {
         file = fopen(argv[1], "r");
         if (file == NULL) {
             perror("Error opening file");
-            return -1;  /* Error opening file*/
+            return -1;  // Error opening file
         }
         numTrains = getNumTrains(file);
         fclose(file);
@@ -292,10 +312,10 @@ int main(int argc, char *argv[]) {
     pthread_cond_init(&off_track_cv, NULL);
 
     pthread_t train_threads[numTrains];
-    pthread_cond_t train_wait_cv[numTrains];
+    pthread_cond_t train_conditions[numTrains];
 
     Train *trains = malloc(numTrains * sizeof(*trains));
-    fileToTrains(trains, argv[1], train_wait_cv);
+    createTrains(trains, argv[1], train_conditions);
 
     startTimer();
 
@@ -303,9 +323,11 @@ int main(int argc, char *argv[]) {
         pthread_create(&train_threads[i], NULL, train_thread_routine, (void *) &trains[i]);
     }
 
-    /*dispatch */
-    /* The purpose of dispatch loop is to solve 4b, 4c opposite directions 
-     * and starvation*/
+
+
+
+
+    //dispatch 
     for (int dispatchedTrains = 0; dispatchedTrains < numTrains; ) {
         pthread_mutex_lock(&station_mutex);
 
@@ -317,28 +339,28 @@ int main(int argc, char *argv[]) {
 
         if (!isEmpty(&eastBound) || !isEmpty(&westBound)) {
             if (consecutive_trains >= 3) {
-                /* Ensure a train from the opposite direction is dispatched if present*/
+                // Ensure a train from the opposite direction is dispatched if present
                 if (last_direction == EAST && !isEmpty(&westBound)) {
                     nextTrain = peek(&westBound);
                     pop(&westBound);
-                    consecutive_trains = 1; /* Reset the counter as this train breaks the sequence*/
+                    consecutive_trains = 1; // Reset the counter as this train breaks the sequence
                     last_direction = WEST;
                 } else if (last_direction == WEST && !isEmpty(&eastBound)) {
                     nextTrain = peek(&eastBound);
                     pop(&eastBound);
-                    consecutive_trains = 1; /* Reset the counter as this train breaks the sequence*/
+                    consecutive_trains = 1; // Reset the counter as this train breaks the sequence
                     last_direction = EAST;
                 } else { 
-                    /* Fallback mechanism to handle case when opposite queue is empty */
-                    /* and there are more than 3 trains in the original direction queue*/
+                    // Fallback mechanism to handle case when opposite queue is empty 
+                    // and there are more than 3 trains in the original direction queue
                     if (last_direction == EAST && !isEmpty(&eastBound)) {
                         nextTrain = peek(&eastBound);
                         pop(&eastBound);
-                        consecutive_trains++; /* Increase instead of resetting*/
+                        consecutive_trains++; // Here, we increase instead of resetting
                     } else if (last_direction == WEST && !isEmpty(&westBound)) {
                         nextTrain = peek(&westBound);
                         pop(&westBound);
-                        consecutive_trains++; /* Increase instead of resetting*/
+                        consecutive_trains++; // Again, increase instead of resetting
                     }
                 }
             } else {
@@ -367,25 +389,27 @@ int main(int argc, char *argv[]) {
 
 
             if(nextTrain){
-                pthread_cond_signal(nextTrain->train_cv); /* Signal the highest priority train*/
+                pthread_cond_signal(nextTrain->train_cv); // Signal the highest priority train
                 pthread_mutex_unlock(&station_mutex);
-                pthread_cond_wait(&off_track_cv, &track_mutex); /* wait until the chosen train has crossed*/
+                pthread_cond_wait(&off_track_cv, &track_mutex); // wait until the chosen train has crossed
                 dispatchedTrains++;
             }
         } else {
             pthread_mutex_unlock(&station_mutex);
-            usleep(1000); /* Small sleep before checking again.*/
+            usleep(1000); // Small sleep before checking again.
         }
     }
+
+
+
+
 
     for (int i = 0; i < numTrains; i++) {
         if (pthread_join(train_threads[i], NULL) != 0) {
             perror("Failed to join thread");
         }
     }
-    free(trains);
-    freeQueue(&eastBound);
-    freeQueue(&westBound);
+
     pthread_mutex_destroy(&station_mutex);
     pthread_mutex_destroy(&track_mutex);
     pthread_cond_destroy(&ready_cv);
