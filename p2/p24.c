@@ -130,7 +130,6 @@ Node* westBound;    /* Queue to store west bound trains*/
 Node* eastBound;    /* Queue to store east bound trains*/
 int numTrains = 0;  /* Stores the number of trains*/
 int trainCount = 0;
-int on_track = 0;           /* Variable to indicate that a train is on the track*/
 int consecutive_trains = 0; /* Stores number of consecutive trains in one direction*/
 int last_direction = WEST;  /* Stores direction of last train*/
 /*==================================*/
@@ -257,7 +256,6 @@ void *train_thread_routine(void *arg) {
     usleep(crossTime);
 
     pthread_mutex_lock(&track_mutex);
-    on_track = 0;  /* Mark the track as unoccupied*/
     printTime();
     printf("Train %2d is OFF the main track after going %s\n", train->number, getDirection(train->direction));
     pthread_cond_signal(&off_track_cv);  /* Signal that the track is available*/
@@ -305,87 +303,87 @@ int main(int argc, char *argv[]) {
         pthread_create(&train_threads[i], NULL, train_thread_routine, (void *) &trains[i]);
     }
 
-    /*dispatch */
+    /* Dispatch loop */
     /* The purpose of dispatch loop is to solve 4b, 4c opposite directions 
      * and starvation*/
 
 
     for (int dispatchedTrains = 0; dispatchedTrains < numTrains; ) {
-    pthread_mutex_lock(&station_mutex);
+        pthread_mutex_lock(&station_mutex);
 
-    while(isEmpty(&eastBound) && isEmpty(&westBound)) {
-        pthread_cond_wait(&ready_cv, &station_mutex);
-    }
+        while(isEmpty(&eastBound) && isEmpty(&westBound)) {
+            pthread_cond_wait(&ready_cv, &station_mutex);
+        }
 
-    Train *nextTrain = NULL;
+        Train *nextTrain = NULL;
 
-    // Determine if we need to switch direction
-    bool switchDirection = consecutive_trains >= 3;
+        /* check if 3 consecutive trains have crossed in one direction... */
+        bool switchDirection = consecutive_trains >= 3;
 
-    if (switchDirection) {
-        if (last_direction == EAST && !isEmpty(&westBound)) {
-            nextTrain = peek(&westBound);
-            pop(&westBound);
-            last_direction = WEST;
-            consecutive_trains = 1;
-        } else if (last_direction == WEST && !isEmpty(&eastBound)) {
-            nextTrain = peek(&eastBound);
-            pop(&eastBound);
-            last_direction = EAST;
-            consecutive_trains = 1;
-        } 
-    }
-
-    // If we haven't picked a train yet, let's pick one based on last direction and availability.
-        
-        if (!nextTrain) {
-        if (last_direction == EAST) {
-            if (!isEmpty(&eastBound) && 
-                (isEmpty(&westBound) || 
-                 peekPriority(&eastBound) > peekPriority(&westBound) ||
-                 (peekPriority(&eastBound) == peekPriority(&westBound) && peekLoadTime(&eastBound) < peekLoadTime(&westBound)))) {
-                nextTrain = peek(&eastBound);
-                pop(&eastBound);
-                consecutive_trains++;
-            } else if (!isEmpty(&westBound)) {
+        if (switchDirection) {
+            if (last_direction == EAST && !isEmpty(&westBound)) {
                 nextTrain = peek(&westBound);
                 pop(&westBound);
                 last_direction = WEST;
                 consecutive_trains = 1;
-            }
-        } else { // Last direction was WEST
-            if (!isEmpty(&westBound) && 
-                (isEmpty(&eastBound) || 
-                 peekPriority(&westBound) > peekPriority(&eastBound) ||
-                 (peekPriority(&westBound) == peekPriority(&eastBound) && peekLoadTime(&westBound) < peekLoadTime(&eastBound)))) {
-                nextTrain = peek(&westBound);
-                pop(&westBound);
-                consecutive_trains++;
-            } else if (!isEmpty(&eastBound)) {
+            } else if (last_direction == WEST && !isEmpty(&eastBound)) {
                 nextTrain = peek(&eastBound);
                 pop(&eastBound);
                 last_direction = EAST;
                 consecutive_trains = 1;
+            } 
+        }
+
+        /* If a train hasn't been picked yet then pick the next one based on last direction, priority, and loadtime*/
+
+        if (!nextTrain) {
+            if (last_direction == EAST) {
+                if (!isEmpty(&eastBound) && 
+                    (isEmpty(&westBound) || 
+                    peekPriority(&eastBound) > peekPriority(&westBound) ||
+                    (peekPriority(&eastBound) == peekPriority(&westBound) && peekLoadTime(&eastBound) < peekLoadTime(&westBound)))) {
+                    nextTrain = peek(&eastBound);
+                    pop(&eastBound);
+                    consecutive_trains++;
+                } else if (!isEmpty(&westBound)) {
+                    nextTrain = peek(&westBound);
+                    pop(&westBound);
+                    last_direction = WEST;
+                    consecutive_trains = 1;
+                }
+            } else { /* Last direction was WEST*/
+                if (!isEmpty(&westBound) && 
+                    (isEmpty(&eastBound) || 
+                    peekPriority(&westBound) > peekPriority(&eastBound) ||
+                    (peekPriority(&westBound) == peekPriority(&eastBound) && peekLoadTime(&westBound) < peekLoadTime(&eastBound)))) {
+                    nextTrain = peek(&westBound);
+                    pop(&westBound);
+                    consecutive_trains++;
+                } else if (!isEmpty(&eastBound)) {
+                    nextTrain = peek(&eastBound);
+                    pop(&eastBound);
+                    last_direction = EAST;
+                    consecutive_trains = 1;
+                }
             }
         }
+
+        if (nextTrain) {
+            pthread_cond_signal(nextTrain->train_cv); /* Signal the highest priority train */
+            pthread_mutex_unlock(&station_mutex);
+
+            pthread_mutex_lock(&track_mutex);
+            pthread_cond_wait(&off_track_cv, &track_mutex); /* wait until the chosen train has crossed */
+            pthread_mutex_unlock(&track_mutex);
+
+            dispatchedTrains++;
+            printf("consecutive_trains: %d last dir: %d\n", 
+                   consecutive_trains, last_direction);
+        } else {
+            pthread_mutex_unlock(&station_mutex);
+            usleep(1000); /* Small sleep before checking again. */
+        }
     }
-
-    if (nextTrain) {
-        pthread_cond_signal(nextTrain->train_cv); /* Signal the highest priority train */
-        pthread_mutex_unlock(&station_mutex);
-
-        pthread_mutex_lock(&track_mutex);
-        pthread_cond_wait(&off_track_cv, &track_mutex); /* wait until the chosen train has crossed */
-        pthread_mutex_unlock(&track_mutex);
-
-        dispatchedTrains++;
-        printf("consecutive_trains: %d last dir: %d\n", 
-               consecutive_trains, last_direction);
-    } else {
-        pthread_mutex_unlock(&station_mutex);
-        usleep(1000); /* Small sleep before checking again. */
-    }
-}
 
 
     for (int i = 0; i < numTrains; i++) {
