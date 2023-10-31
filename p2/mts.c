@@ -377,8 +377,6 @@ int main(int argc, char *argv[]) {
             pthread_mutex_unlock(&track_mutex);
 
             dispatchedTrains++;
-            printf("consecutive_trains: %d last dir: %d\n", 
-                   consecutive_trains, last_direction);
         } else {
             pthread_mutex_unlock(&station_mutex);
             usleep(1000); /* Small sleep before checking again. */
