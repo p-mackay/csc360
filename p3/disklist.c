@@ -136,7 +136,7 @@ int get_subdir_starting_block(FILE* file, const struct superblock_t* sb, const c
 
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
+    if (argc < 2 || argc > 3) {
         fprintf(stderr, "Usage: %s <file system image>\n", argv[0]);
         return 1;
     }
@@ -206,15 +206,26 @@ int main(int argc, char *argv[]) {
     // Read entries of root and subdirectories
     // =======================================================================
 
+    if (argc == 2){
+        list_directory_contents(file, sb.root_dir_start_block, sb.block_size, sb.root_dir_block_count * sb.block_size);
+    } else if (argc == 3){
+        char *subdir_name = argv[2];
+        
+        if (subdir_name[0] == '/') {
+            subdir_name++;  // Increment pointer to skip the leading slash
+        }
 
-    uint32_t subdir_start_block;
-    uint32_t subdir_block_count; // You need to know the block count for subdir1
+        uint32_t subdir_start_block;
+        uint32_t subdir_block_count; // You need to know the block count for subdir1
 
-    if (get_subdir_starting_block(file, &sb, "subdir1", sb.root_dir_start_block, sb.root_dir_block_count, &subdir_start_block, &subdir_block_count) == 0) {
-        list_directory_contents(file, subdir_start_block, sb.block_size, subdir_block_count * sb.block_size);
-    } else {
-        printf("Subdirectory not found\n");
+        if (get_subdir_starting_block(file, &sb, subdir_name, sb.root_dir_start_block, sb.root_dir_block_count, &subdir_start_block, &subdir_block_count) == 0) {
+            list_directory_contents(file, subdir_start_block, sb.block_size, subdir_block_count * sb.block_size);
+        } else {
+            printf("Subdirectory '%s' not found\n", argv[2]);
+        }
+
     }
+
 
 
     /*
