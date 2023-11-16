@@ -47,6 +47,94 @@ uint32_t swap_endian_32(uint32_t value) {
     ((value << 24) & 0xff000000);
 }
 
+void list_directory_contents(FILE *file, uint32_t start_block, uint32_t block_size, uint32_t dir_size) {
+    uint32_t dir_pos = start_block * block_size;
+
+    // Read directory entries
+    struct dir_entry_t *entries = malloc(dir_size);
+    if (!entries) {
+        perror("Error allocating memory for directory entries");
+        return;
+    }
+
+    fseek(file, dir_pos, SEEK_SET);
+    fread(entries, dir_size, 1, file);
+
+    // Iterate over each directory entry
+    for (size_t i = 0; i < dir_size / sizeof(struct dir_entry_t); ++i) {
+        struct dir_entry_t *entry = &entries[i];
+
+        // Check if the entry is valid
+        if (entry->status & 0x01) {
+            char type = 'U'; // Default to 'Unknown' type
+            if ((entry->status & 0x02) && !(entry->status & 0x04)) {
+                type = 'F'; // It's a file
+            } else if (entry->status & 0x04) {
+                type = 'D'; // It's a directory
+            }
+
+            if (type == 'F' || type == 'D') {
+                char datetime[20];
+                sprintf(datetime, "%04u/%02u/%02u %02u:%02u:%02u",
+                        swap_endian_16(entry->create_time.year),
+                        entry->create_time.month,
+                        entry->create_time.day,
+                        entry->create_time.hour,
+                        entry->create_time.minute,
+                        entry->create_time.second);
+
+                // Print the formatted entry
+                printf("%c %10u %30s %s\n",
+                       type,
+                       swap_endian_32(entry->size),
+                       entry->filename,
+                       datetime);
+            }
+        }
+    }
+
+    free(entries);
+}
+
+int get_subdir_starting_block(FILE* file, const struct superblock_t* sb, const char* subdir_name, uint32_t parent_dir_start_block, uint32_t parent_dir_block_count, uint32_t* starting_block, uint32_t* block_count) {
+    uint32_t parent_dir_pos = parent_dir_start_block * sb->block_size;
+    uint32_t parent_dir_size = parent_dir_block_count * sb->block_size;
+
+    // Allocate memory for parent directory entries
+    struct dir_entry_t *entries = malloc(parent_dir_size);
+    if (!entries) {
+        perror("Error allocating memory for directory entries");
+        return -1;
+    }
+
+    fseek(file, parent_dir_pos, SEEK_SET);
+    fread(entries, parent_dir_size, 1, file);
+
+    int found = 0;
+    for (size_t i = 0; i < parent_dir_size / sizeof(struct dir_entry_t); ++i) {
+        struct dir_entry_t *entry = &entries[i];
+
+        // Check if the entry is valid and is a directory
+        if ((entry->status & 0x01) && (entry->status & 0x04)) {
+            char temp_filename[32]; // One extra byte for the null terminator
+            strncpy(temp_filename, (const char *)entry->filename, 31);
+            temp_filename[31] = '\0'; // Ensure null termination
+            // Check if the name matches the subdirectory name
+            if (strncmp(temp_filename, subdir_name, strlen(subdir_name)) == 0) {
+                *starting_block = swap_endian_32(entry->starting_block);
+                *block_count = swap_endian_32(entry->block_count);
+                found = 1;
+                break;  // Exit the loop once the subdirectory is found
+            }
+        }
+    }
+
+    free(entries); // Free the allocated memory
+
+    return found ? 0 : -1; // Return 0 if found, -1 if not found
+}
+
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <file system image>\n", argv[0]);
@@ -70,7 +158,6 @@ int main(int argc, char *argv[]) {
     sb.fat_block_count = swap_endian_32(sb.fat_block_count);
     sb.root_dir_start_block = swap_endian_32(sb.root_dir_start_block);
     sb.root_dir_block_count = swap_endian_32(sb.root_dir_block_count);
-    fclose(file);
     // Print the superblock information
     printf("Super block information\n");
     printf("Block size: %u\n", sb.block_size);
@@ -80,12 +167,6 @@ int main(int argc, char *argv[]) {
     printf("Root directory starts: %u\n", sb.root_dir_start_block);
     printf("Root directory blocks: %u\n", sb.root_dir_block_count);
 
-    file = fopen(argv[1], "rb");
-    if (!file) {
-        perror("Error opening file");
-        return 1;
-    }
-
     // Calculate the size of the FAT section
     uint32_t fat_size = sb.fat_block_count * sb.block_size;
 
@@ -93,14 +174,12 @@ int main(int argc, char *argv[]) {
     uint32_t *fat = malloc(fat_size);
     if (!fat) {
         perror("Error allocating memory for FAT");
-        fclose(file);
         return 1;
     }
 
     // Read the FAT
     fseek(file, sb.fat_start_block * sb.block_size, SEEK_SET);
     fread(fat, fat_size, 1, file);
-    fclose(file);
 
     // Count free, reserved, and allocated blocks
     uint32_t free_blocks = 0, reserved_blocks = 0, allocated_blocks = 0;
@@ -122,77 +201,33 @@ int main(int argc, char *argv[]) {
     free(fat); // Free the allocated memory 
     // =======================================================================
 
-
     printf("\n");
 
-    // Read root directory
+    // Read entries of root and subdirectories
     // =======================================================================
 
-    // Open the file system image to read the root directory entries
-    file = fopen(argv[1], "rb");
-    if (!file) {
-        perror("Error opening file");
-        return 1;
+
+    uint32_t subdir_start_block;
+    uint32_t subdir_block_count; // You need to know the block count for subdir1
+
+    if (get_subdir_starting_block(file, &sb, "subdir1", sb.root_dir_start_block, sb.root_dir_block_count, &subdir_start_block, &subdir_block_count) == 0) {
+        list_directory_contents(file, subdir_start_block, sb.block_size, subdir_block_count * sb.block_size);
+    } else {
+        printf("Subdirectory not found\n");
     }
 
-    // Calculate the starting position and size of the root directory
-    uint32_t root_dir_pos = sb.root_dir_start_block * sb.block_size;
-    uint32_t root_dir_size = sb.root_dir_block_count * sb.block_size;
 
-    // Read root directory entries
-    struct dir_entry_t *entries = malloc(root_dir_size);
-    if (!entries) {
-        perror("Error allocating memory for directory entries");
-        fclose(file);
-        return 1;
-    }
+    /*
+    // List the contents of the root directory
+    list_directory_contents(file, sb.root_dir_start_block, sb.block_size, sb.root_dir_block_count * sb.block_size);
+    */
 
-    fseek(file, root_dir_pos, SEEK_SET);
-    fread(entries, root_dir_size, 1, file);
+    // =======================================================================
+
+
+
+
     fclose(file);
-
-    // Iterate over each directory entry
-    for (size_t i = 0; i < root_dir_size / sizeof(struct dir_entry_t); ++i) {
-        struct dir_entry_t *entry = &entries[i];
-        // Check if the entry is valid
-        if (entry->status & 0x01) {
-
-            char type = 'U';  // Default to 'Unknown' type
-
-            if ((entry->status & 0x02) && !(entry->status & 0x04)) {  // Bit 1 is set and Bit 2 is not set
-                type = 'F';  // It's a file
-            } else if (entry->status & 0x04) {  // Bit 2 is set
-                type = 'D';  // It's a directory
-            }
-
-            if (type == 'F' || type == 'D') {
-                char datetime[20];
-                sprintf(datetime, "%04u/%02u/%02u %02u:%02u:%02u",
-                        swap_endian_16(entry->create_time.year),
-                        entry->create_time.month,
-                        entry->create_time.day,
-                        entry->create_time.hour,
-                        entry->create_time.minute,
-                        entry->create_time.second);
-
-                // Print the formatted entry
-                printf("%c %10u %30s %s\n",
-                       type,
-                       swap_endian_32(entry->size),
-                       entry->filename,
-                       datetime);
-            }
-        }
-    }
-
-    free(entries); // Free the allocated memory
-
-
-
-    // =======================================================================
-
-
-
     return 0;
 }
 

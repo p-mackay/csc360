@@ -82,9 +82,9 @@ int main(int argc, char *argv[]) {
     // Count free, reserved, and allocated blocks
     uint32_t free_blocks = 0, reserved_blocks = 0, allocated_blocks = 0;
     for (uint32_t i = 0; i < fat_size / sizeof(uint32_t); i++) {
-        if (swap_endian_32(fat[i]) == 0) { // Assuming '0' indicates a free block
+        if (swap_endian_32(fat[i]) == 0) { 
             free_blocks++;
-        } else if (swap_endian_32(fat[i]) == 1) { // Assuming '1' indicates a reserved block
+        } else if (swap_endian_32(fat[i]) == 1) { 
             reserved_blocks++;
         } else {
             allocated_blocks++;
