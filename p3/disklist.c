@@ -134,6 +134,33 @@ int get_subdir_starting_block(FILE* file, const struct superblock_t* sb, const c
     return found ? 0 : -1; // Return 0 if found, -1 if not found
 }
 
+// Function to list contents of a directory given its path
+void list_directory_recursive(FILE* file, const struct superblock_t* sb, const char* path) {
+    char path_copy[1024];  
+    strncpy(path_copy, path, 1024);
+    path_copy[1023] = '\0';  
+
+    char* token = strtok(path_copy, "/");
+    uint32_t current_start_block = sb->root_dir_start_block;
+    uint32_t current_block_count = sb->root_dir_block_count;
+
+    while (token != NULL) {
+        uint32_t subdir_start_block;
+        uint32_t subdir_block_count;
+
+        if (get_subdir_starting_block(file, sb, token, current_start_block, current_block_count, &subdir_start_block, &subdir_block_count) != 0) {
+            printf("Subdirectory '%s' not found\n", token);
+            return;
+        }
+
+        current_start_block = subdir_start_block;
+        current_block_count = subdir_block_count;
+        token = strtok(NULL, "/");
+    }
+
+    list_directory_contents(file, current_start_block, sb->block_size, current_block_count * sb->block_size);
+}
+
 
 int main(int argc, char *argv[]) {
     if (argc < 2 || argc > 3) {
@@ -209,6 +236,8 @@ int main(int argc, char *argv[]) {
     if (argc == 2){
         list_directory_contents(file, sb.root_dir_start_block, sb.block_size, sb.root_dir_block_count * sb.block_size);
     } else if (argc == 3){
+        list_directory_recursive(file, &sb, argv[2]);
+        /*
         char *subdir_name = argv[2];
         
         if (subdir_name[0] == '/') {
@@ -216,13 +245,14 @@ int main(int argc, char *argv[]) {
         }
 
         uint32_t subdir_start_block;
-        uint32_t subdir_block_count; // You need to know the block count for subdir1
+        uint32_t subdir_block_count; 
 
         if (get_subdir_starting_block(file, &sb, subdir_name, sb.root_dir_start_block, sb.root_dir_block_count, &subdir_start_block, &subdir_block_count) == 0) {
             list_directory_contents(file, subdir_start_block, sb.block_size, subdir_block_count * sb.block_size);
         } else {
             printf("Subdirectory '%s' not found\n", argv[2]);
         }
+        */
 
     }
 
