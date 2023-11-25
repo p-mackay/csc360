@@ -4,6 +4,8 @@
 #include <string.h>
 #include <netinet/in.h>
 
+#define min(a,b) ((a) < (b) ? (a) : (b))
+
 // Super block 
 struct __attribute__((__packed__)) superblock_t {
     uint8_t fs_id [8];
@@ -36,6 +38,8 @@ struct __attribute__((__packed__)) dir_entry_t {
     uint8_t         filename[31];  
     uint8_t         unused[6];
 };
+
+
 
 void list_directory_contents(FILE *file, uint32_t start_block, uint32_t block_size, uint32_t dir_size) {
     uint32_t dir_pos = start_block * block_size;
@@ -151,10 +155,103 @@ void list_directory_recursive(FILE* file, const struct superblock_t* sb, const c
     list_directory_contents(file, current_start_block, sb->block_size, current_block_count * sb->block_size);
 }
 
+int find_file_in_directory(FILE* file, const struct superblock_t* sb, const char* filename, uint32_t start_block, uint32_t block_count, uint32_t* start_block_out, uint32_t* file_size) {
+    uint32_t dir_pos = start_block * sb->block_size;
+    uint32_t dir_size = block_count * sb->block_size;
+
+    struct dir_entry_t *entries = malloc(dir_size);
+    if (!entries) {
+        perror("Error allocating memory for directory entries");
+        return 0;
+    }
+
+    fseek(file, dir_pos, SEEK_SET);
+    fread(entries, dir_size, 1, file);
+
+    int found = 0;
+    for (size_t i = 0; i < dir_size / sizeof(struct dir_entry_t); ++i) {
+        struct dir_entry_t *entry = &entries[i];
+
+        if ((entry->status & 0x01) && !(entry->status & 0x04)) { // Check if it's a valid file
+            char temp_filename[32];
+            strncpy(temp_filename, (const char *)entry->filename, 31);
+            temp_filename[31] = '\0';
+
+            if (strcmp(temp_filename, filename) == 0) {
+                *start_block_out = entry->starting_block;
+                *file_size = entry->size;
+                found = 1;
+                break;
+            }
+        }
+    }
+
+    free(entries);
+    return found;
+}
+
+int find_file(FILE* file, const struct superblock_t* sb, const char* filepath, uint32_t* start_block, uint32_t* file_size) {
+    char path_copy[1024];  
+    strncpy(path_copy, filepath, 1024);
+    path_copy[1023] = '\0';  
+
+    char* token = strtok(path_copy, "/");
+    char* next_token;
+    uint32_t current_start_block = sb->root_dir_start_block;
+    uint32_t current_block_count = sb->root_dir_block_count;
+
+    while ((next_token = strtok(NULL, "/")) != NULL) {
+        uint32_t subdir_start_block;
+        uint32_t subdir_block_count;
+
+        if (get_subdir_starting_block(file, sb, token, current_start_block, current_block_count, &subdir_start_block, &subdir_block_count) != 0) {
+            return 0; // Subdirectory not found
+        }
+
+        current_start_block = subdir_start_block;
+        current_block_count = subdir_block_count;
+        token = next_token;
+    }
+
+    // Now 'token' points to the filename, search for the file in the current directory
+    return find_file_in_directory(file, sb, token, current_start_block, current_block_count, start_block, file_size);
+}
+
+
+void read_file_data(FILE* file, uint32_t start_block, uint32_t file_size, uint32_t* fat, uint32_t block_size, char* buffer) {
+    uint32_t current_block = start_block;
+    uint32_t bytes_read = 0;
+    uint32_t bytes_to_read;
+
+    while (bytes_read < file_size) {
+        // Calculate file offset
+        uint32_t offset = current_block * block_size;
+        // Calculate the number of bytes to read (handle last block case)
+        bytes_to_read = min(block_size, file_size - bytes_read);
+
+        // Set file position
+        fseek(file, offset, SEEK_SET);
+        // Read block data into buffer
+        fread(buffer + bytes_read, 1, bytes_to_read, file);
+        
+        // Update bytes read
+        bytes_read += bytes_to_read;
+
+        // Check if end of file is reached in FAT
+        if (fat[current_block] == 0xFFFF) {
+            break;
+        }
+
+        // Update current block using FAT
+        current_block = fat[current_block];
+    }
+}
+
+
 
 int main(int argc, char *argv[]) {
-    if (argc < 2 || argc > 3) {
-        fprintf(stderr, "Usage: %s <file system image>\n", argv[0]);
+    if (argc != 4) {
+        fprintf(stderr, "Usage: %s <file system image> <path to file> <output file>\n", argv[0]);
         return 1;
     }
     FILE *file = fopen(argv[1], "rb");
@@ -222,46 +319,45 @@ int main(int argc, char *argv[]) {
     */
     // =======================================================================
 
-    //printf("\n");
+    printf("\n");
 
-    // Read entries of root and subdirectories
-    // =======================================================================
 
-    if (argc == 2){
-        list_directory_contents(file, sb.root_dir_start_block, sb.block_size, sb.root_dir_block_count * sb.block_size);
-    } else if (argc == 3){
-        list_directory_recursive(file, &sb, argv[2]);
-        /*
-        char *subdir_name = argv[2];
-        
-        if (subdir_name[0] == '/') {
-            subdir_name++;  // Increment pointer to skip the leading slash
-        }
 
-        uint32_t subdir_start_block;
-        uint32_t subdir_block_count; 
 
-        if (get_subdir_starting_block(file, &sb, subdir_name, sb.root_dir_start_block, sb.root_dir_block_count, &subdir_start_block, &subdir_block_count) == 0) {
-            list_directory_contents(file, subdir_start_block, sb.block_size, subdir_block_count * sb.block_size);
-        } else {
-            printf("Subdirectory '%s' not found\n", argv[2]);
-        }
-        */
 
-    }
+
+
+
+
 
 
 
     /*
-    // List the contents of the root directory
-    list_directory_contents(file, sb.root_dir_start_block, sb.block_size, sb.root_dir_block_count * sb.block_size);
+    uint32_t start_block, file_size;
+    if (find_file(file, &sb, argv[2], &start_block, &file_size)) {
+        // File found, proceed to read its data
+        char *buffer = malloc(file_size);
+        if (buffer) {
+            read_file_data(file, start_block, file_size, fat,sb.block_size, buffer);
+
+            // You can now write buffer to an output file or handle it as needed
+            FILE *output_file = fopen(argv[3], "wb");
+            if (output_file) {
+                fwrite(buffer, 1, file_size, output_file);
+                fclose(output_file);
+            } else {
+                perror("Error creating output file");
+            }
+            free(buffer);
+        } else {
+            perror("Error allocating buffer");
+        }
+    } else {
+        printf("File not found\n");
+    }
+
+    free(fat);
     */
-
-    // =======================================================================
-
-
-
-
     fclose(file);
     return 0;
 }

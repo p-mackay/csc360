@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <netinet/in.h>
 
 // Define a structure for the superblock
 struct __attribute__((__packed__)) superblock_t {
@@ -12,17 +13,6 @@ struct __attribute__((__packed__)) superblock_t {
     uint32_t root_dir_start_block;      //Root directory starts
     uint32_t root_dir_block_count;      //Root directory blocks
 };
-
-uint16_t swap_endian_16(uint16_t value) {
-    return (value >> 8) | (value << 8);
-}
-
-uint32_t swap_endian_32(uint32_t value) {
-    return ((value >> 24) & 0xff) |
-           ((value << 8) & 0xff0000) |
-           ((value >> 8) & 0xff00) |
-           ((value << 24) & 0xff000000);
-}
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -40,12 +30,12 @@ int main(int argc, char *argv[]) {
     struct superblock_t sb;
     fread(&sb, sizeof(struct superblock_t), 1, file);
 
-    sb.block_size = swap_endian_16(sb.block_size);
-    sb.file_system_block_count = swap_endian_32(sb.file_system_block_count);
-    sb.fat_start_block = swap_endian_32(sb.fat_start_block);
-    sb.fat_block_count = swap_endian_32(sb.fat_block_count);
-    sb.root_dir_start_block = swap_endian_32(sb.root_dir_start_block);
-    sb.root_dir_block_count = swap_endian_32(sb.root_dir_block_count);
+    sb.block_size = htons(sb.block_size);
+    sb.file_system_block_count = htonl(sb.file_system_block_count);
+    sb.fat_start_block = htonl(sb.fat_start_block);
+    sb.fat_block_count = htonl(sb.fat_block_count);
+    sb.root_dir_start_block = htonl(sb.root_dir_start_block);
+    sb.root_dir_block_count = htonl(sb.root_dir_block_count);
     fclose(file);
     // Print the superblock information
     printf("Super block information\n");
@@ -82,9 +72,9 @@ int main(int argc, char *argv[]) {
     // Count free, reserved, and allocated blocks
     uint32_t free_blocks = 0, reserved_blocks = 0, allocated_blocks = 0;
     for (uint32_t i = 0; i < fat_size / sizeof(uint32_t); i++) {
-        if (swap_endian_32(fat[i]) == 0) { 
+        if (htonl(fat[i]) == 0) { 
             free_blocks++;
-        } else if (swap_endian_32(fat[i]) == 1) { 
+        } else if (htonl(fat[i]) == 1) { 
             reserved_blocks++;
         } else {
             allocated_blocks++;
