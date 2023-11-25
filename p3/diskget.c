@@ -154,7 +154,6 @@ void list_directory_recursive(FILE* file, const struct superblock_t* sb, const c
 
     list_directory_contents(file, current_start_block, sb->block_size, current_block_count * sb->block_size);
 }
-
 int find_file_in_directory(FILE* file, const struct superblock_t* sb, const char* filename, uint32_t start_block, uint32_t block_count, uint32_t* start_block_out, uint32_t* file_size) {
     uint32_t dir_pos = start_block * sb->block_size;
     uint32_t dir_size = block_count * sb->block_size;
@@ -172,14 +171,15 @@ int find_file_in_directory(FILE* file, const struct superblock_t* sb, const char
     for (size_t i = 0; i < dir_size / sizeof(struct dir_entry_t); ++i) {
         struct dir_entry_t *entry = &entries[i];
 
-        if ((entry->status & 0x01) && !(entry->status & 0x04)) { // Check if it's a valid file
+        if ((entry->status & 0x01) && !(entry->status & 0x04)) { // Check if it's a valid file and not a directory
             char temp_filename[32];
             strncpy(temp_filename, (const char *)entry->filename, 31);
-            temp_filename[31] = '\0';
+            temp_filename[31] = '\0'; // Ensure null termination
 
             if (strcmp(temp_filename, filename) == 0) {
-                *start_block_out = entry->starting_block;
-                *file_size = entry->size;
+                // Found the file, set the output parameters
+                *start_block_out = ntohl(entry->starting_block);
+                *file_size = ntohl(entry->size);
                 found = 1;
                 break;
             }
@@ -190,60 +190,73 @@ int find_file_in_directory(FILE* file, const struct superblock_t* sb, const char
     return found;
 }
 
+
+// Modified to find a file and return its start block and size
 int find_file(FILE* file, const struct superblock_t* sb, const char* filepath, uint32_t* start_block, uint32_t* file_size) {
-    char path_copy[1024];  
+    char path_copy[1024];
     strncpy(path_copy, filepath, 1024);
-    path_copy[1023] = '\0';  
+    path_copy[1023] = '\0';
 
     char* token = strtok(path_copy, "/");
-    char* next_token;
     uint32_t current_start_block = sb->root_dir_start_block;
     uint32_t current_block_count = sb->root_dir_block_count;
 
-    while ((next_token = strtok(NULL, "/")) != NULL) {
-        uint32_t subdir_start_block;
-        uint32_t subdir_block_count;
+    while (token != NULL) {
+        // Check if the token is the filename or a directory
+        char* next_token = strtok(NULL, "/");
+        if (next_token == NULL) {
+            // It's a filename, find it in the current directory
+            return find_file_in_directory(file, sb, token, current_start_block, current_block_count, start_block, file_size);
+        }
 
-        if (get_subdir_starting_block(file, sb, token, current_start_block, current_block_count, &subdir_start_block, &subdir_block_count) != 0) {
+        // It's a directory, navigate to it
+        if (get_subdir_starting_block(file, sb, token, current_start_block, current_block_count, &current_start_block, &current_block_count) != 0) {
             return 0; // Subdirectory not found
         }
 
-        current_start_block = subdir_start_block;
-        current_block_count = subdir_block_count;
         token = next_token;
     }
 
-    // Now 'token' points to the filename, search for the file in the current directory
-    return find_file_in_directory(file, sb, token, current_start_block, current_block_count, start_block, file_size);
+    return 0; // File not found
 }
+// Reads file data using FAT and stores it in a buffer
 
 
-void read_file_data(FILE* file, uint32_t start_block, uint32_t file_size, uint32_t* fat, uint32_t block_size, char* buffer) {
+void read_file_data(FILE* file, uint32_t start_block, uint32_t file_size, uint32_t* fat, uint32_t fat_size, uint32_t block_size, char* buffer) {
     uint32_t current_block = start_block;
     uint32_t bytes_read = 0;
-    uint32_t bytes_to_read;
+    uint32_t fat_entries = fat_size / sizeof(uint32_t);
 
     while (bytes_read < file_size) {
-        // Calculate file offset
-        uint32_t offset = current_block * block_size;
-        // Calculate the number of bytes to read (handle last block case)
-        bytes_to_read = min(block_size, file_size - bytes_read);
-
-        // Set file position
-        fseek(file, offset, SEEK_SET);
-        // Read block data into buffer
-        fread(buffer + bytes_read, 1, bytes_to_read, file);
-        
-        // Update bytes read
-        bytes_read += bytes_to_read;
-
-        // Check if end of file is reached in FAT
-        if (fat[current_block] == 0xFFFF) {
+        if (current_block >= fat_entries) {
+            fprintf(stderr, "Invalid block reference in FAT.\n");
             break;
         }
 
-        // Update current block using FAT
-        current_block = fat[current_block];
+        uint32_t offset = current_block * block_size;
+        uint32_t bytes_to_read = min(block_size, file_size - bytes_read);
+        fseek(file, offset, SEEK_SET);
+        fread(buffer + bytes_read, 1, bytes_to_read, file);
+        bytes_read += bytes_to_read;
+
+        // Move to next block using FAT
+        uint32_t next_block = ntohl(fat[current_block]); // Convert from network byte order if needed
+        if (next_block == 0xFFFFFFFF) break; // End of file
+        current_block = next_block;
+    }
+}
+
+
+
+
+// Writes buffer to an output file
+void write_to_output_file(const char* output_filename, char* buffer, uint32_t file_size) {
+    FILE* output_file = fopen(output_filename, "wb");
+    if (output_file) {
+        fwrite(buffer, 1, file_size, output_file);
+        fclose(output_file);
+    } else {
+        perror("Error creating output file");
     }
 }
 
@@ -272,16 +285,6 @@ int main(int argc, char *argv[]) {
     sb.fat_block_count = htonl(sb.fat_block_count);
     sb.root_dir_start_block = htonl(sb.root_dir_start_block);
     sb.root_dir_block_count = htonl(sb.root_dir_block_count);
-    // Print the superblock information
-    /*
-    printf("Super block information\n");
-    printf("Block size: %u\n", sb.block_size);
-    printf("Block count: %u\n", sb.file_system_block_count);
-    printf("FAT starts: %u\n", sb.fat_start_block);
-    printf("FAT blocks: %u\n", sb.fat_block_count);
-    printf("Root directory starts: %u\n", sb.root_dir_start_block);
-    printf("Root directory blocks: %u\n", sb.root_dir_block_count);
-    */
 
     // Calculate the size of the FAT section
     uint32_t fat_size = sb.fat_block_count * sb.block_size;
@@ -308,56 +311,34 @@ int main(int argc, char *argv[]) {
             allocated_blocks++;
         }
     }
-    // Display FAT information
-    /*
-    printf("\n");
-    printf("FAT information\n");
-    printf("Free blocks: %u\n", free_blocks);
-    printf("Reserved blocks: %u\n", reserved_blocks);
-    printf("Allocated blocks: %u\n", allocated_blocks);
-    free(fat); // Free the allocated memory 
-    */
-    // =======================================================================
-
     printf("\n");
 
+    //========================================================================
+    
 
-
-
-
-
-
-
-
-
-
-
-    /*
     uint32_t start_block, file_size;
     if (find_file(file, &sb, argv[2], &start_block, &file_size)) {
-        // File found, proceed to read its data
         char *buffer = malloc(file_size);
-        if (buffer) {
-            read_file_data(file, start_block, file_size, fat,sb.block_size, buffer);
-
-            // You can now write buffer to an output file or handle it as needed
-            FILE *output_file = fopen(argv[3], "wb");
-            if (output_file) {
-                fwrite(buffer, 1, file_size, output_file);
-                fclose(output_file);
-            } else {
-                perror("Error creating output file");
-            }
-            free(buffer);
-        } else {
+        if (!buffer) {
             perror("Error allocating buffer");
+            free(fat);
+            fclose(file);
+            return 1;
         }
+
+        read_file_data(file, start_block, file_size, fat, fat_size, sb.block_size, buffer);
+        write_to_output_file(argv[3], buffer, file_size);
+
+        free(buffer);
     } else {
         printf("File not found\n");
     }
+    
+    
+    //========================================================================
+
 
     free(fat);
-    */
     fclose(file);
     return 0;
 }
